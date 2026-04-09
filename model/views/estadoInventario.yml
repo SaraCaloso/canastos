@@ -1,0 +1,46 @@
+views:
+  - name: estadoInventario
+    title: "2. Estado de Inventario"
+    description: |
+      Vista para analizar inventario histórico por producto, sucursal y fecha.
+      
+      ⚠️ IMPORTANTE: 
+      - El inventario total incluye CEDIS (bodega central) que concentra 70-80% del stock
+      - Para análisis por tienda, usar segmento 'Solo Tiendas'
+      - Inventarios negativos indican faltantes o errores de captura
+    
+    cubes:
+      - join_path: historicoInventario
+        includes:
+          # Dimensiones temporales
+          - fechaCaptura
+          # Dimensiones temporales (calculadas directamente en el cubo)
+          - anio
+          - numMes
+          - nombreMes
+          - diaSemana
+          
+          # Dimensiones de ubicación
+          - sucursal
+          - tipoUbicacion
+          
+          # Dimensiones de producto
+          - sku
+          - producto
+          - marca
+          - linea
+          - unidadMedida
+          
+          # Segmentos útiles
+          - soloTiendas
+          - soloCEDIS
+          - inventarioPositivo
+          - inventarioNegativo
+          
+          # Medidas
+          - name: cantidadStock
+            alias: unidadesActuales
+          - stockPromedio
+          - numUbicaciones
+          - stockMinimo
+          - stockMaximo

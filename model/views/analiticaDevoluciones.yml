@@ -1,0 +1,127 @@
+views:
+  - name: analiticaDevoluciones
+    title: "5. Analítica de Devoluciones"
+    description: |
+      Análisis detallado de devoluciones por tipo de documento.
+      Permite analizar comportamiento de devoluciones por sucursal, fecha y cliente.
+      
+      CASOS DE USO:
+      - Identificar patrones de devoluciones por sucursal/cliente
+      - Calcular tasa de devoluciones
+      - Analizar motivos de devolución
+      - Detectar devoluciones anormales
+      - Comparar ventas brutas vs netas
+      
+      TIPOS DE DOCUMENTO:
+      - REM: Remisión (venta normal)
+      - FAC: Factura
+      - DEV: Devolución completa
+      - DV: Devolución parcial
+      
+      NOTA: Para comparar con cortes Z, consultar 'auditoriaEfectivo'
+      de forma separada y combinar manualmente por fecha/sucursal.
+    
+    public: true
+
+    cubes:
+      - join_path: ventasPorDocumento
+        includes:
+          # Dimensiones
+          - fechaVenta
+          # Dimensiones temporales (calculadas directamente en el cubo)
+          - anio
+          - numMes
+          - nombreMes
+          - diaSemana
+          - sucursal
+          - tipoDocumento
+          - estado
+          - numeroVenta
+          - cliente
+          - vendedor
+          - serieDocumento
+          - observaciones
+          
+          # Medidas de Ventas/Devoluciones
+          - importeTotal
+          - importeVentas
+          - importeDevoluciones
+          - importeNeto
+          - descuentoTotal
+          - impuestoTotal
+          - precioTotal
+          - costoTotal
+          
+          # Conteos
+          - conteoDocumentos
+          - conteoVentas
+          - conteoDevoluciones
+          - porcentajeDevoluciones
+
+    measures:
+      # --- Medidas Calculadas ---
+      - name: tasaDevoluciones
+        sql: |
+          {ventasPorDocumento.importeDevoluciones} 
+          / NULLIF({ventasPorDocumento.importeVentas}, 0) * 100
+        type: number
+        format: percent
+        title: "Tasa de Devoluciones (%)"
+        description: "Porcentaje de devoluciones sobre ventas brutas"
+
+      - name: ventasNetas
+        sql: "{ventasPorDocumento.importeVentas} - {ventasPorDocumento.importeDevoluciones}"
+        type: number
+        format: currency
+        title: "Ventas Netas"
+        description: "Ventas brutas menos devoluciones"
+
+      - name: promedioDevolucion
+        sql: |
+          {ventasPorDocumento.importeDevoluciones} 
+          / NULLIF({ventasPorDocumento.conteoDevoluciones}, 0)
+        type: number
+        format: currency
+        title: "Promedio por Devolución"
+        description: "Importe promedio de cada devolución"
+
+      - name: promedioVenta
+        sql: |
+          {ventasPorDocumento.importeVentas} 
+          / NULLIF({ventasPorDocumento.conteoVentas}, 0)
+        type: number
+        format: currency
+        title: "Promedio por Venta"
+        description: "Importe promedio de cada venta"
+
+    segments:
+      # --- Segmentos Útiles ---
+      - name: soloDevoluciones
+        sql: "{ventasPorDocumento.tipoDocumento} IN ('DEV', 'DV')"
+        title: "Solo Devoluciones"
+        description: "Filtra solo documentos de devolución"
+
+      - name: soloVentas
+        sql: "{ventasPorDocumento.tipoDocumento} IN ('REM', 'FAC')"
+        title: "Solo Ventas"
+        description: "Filtra solo documentos de venta"
+
+      - name: devolucionesAltas
+        sql: "{ventasPorDocumento.importeDevoluciones} > 500"
+        title: "Devoluciones Altas (> $500)"
+        description: "Devoluciones individuales mayores a $500"
+
+      - name: conDevoluciones
+        sql: "{ventasPorDocumento.importeDevoluciones} > 0"
+        title: "Períodos con Devoluciones"
+        description: "Fechas/sucursales que tuvieron devoluciones"
+
+      - name: documentosViables
+        sql: "{ventasPorDocumento.esViable} = true"
+        title: "Solo Documentos Viables"
+        description: "Excluye cancelados o no válidos"
+
+      - name: documentosCompletados
+        sql: "{ventasPorDocumento.estado} = 'CO'"
+        title: "Solo Completados"
+        description: "Solo documentos con estado completado"

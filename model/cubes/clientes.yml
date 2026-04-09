@@ -1,0 +1,33 @@
+cubes:
+  - name: clientes
+    title: "Clientes"
+    sql_table: canastos_tfx.tfx_table_clients
+    public: true
+
+    dimensions:
+      - name: id
+        sql: "{CUBE}.cliente || '-' || {CUBE}.sucursal"
+        type: string
+        primary_key: true
+        title: "ID Sistema"
+
+      - name: codigoCliente
+        sql: "{CUBE}.cliente"
+        type: string
+        title: "Código Cliente"
+
+      - name: nombreCliente
+        sql: "{CUBE}.nombre"
+        type: string
+        title: "Nombre"
+        public: true
+
+      - name: sucursal
+        sql: "{CUBE}.sucursal"
+        type: string
+        title: "Sucursal"
+
+    measures:
+      - name: conteo
+        type: count
+        title: "Total Clientes"

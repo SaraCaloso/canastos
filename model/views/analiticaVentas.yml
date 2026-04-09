@@ -1,0 +1,105 @@
+views:
+  - name: analiticaVentas
+    title: "1. Analítica de Ventas"
+    description: "Vista Maestra de Ventas"
+    
+    cubes:
+      - join_path: partidasVenta
+        includes:
+          - venta
+          - skuRaw
+          - sucursal
+          # Incluimos las nuevas dimensiones auxiliares para que estén disponibles en el contexto
+          - is_viable
+          - precio
+          - cantidad_dim
+          - costo_unitario_calc
+          # Dimensiones temporales (calculadas directamente en el cubo)
+          - fecha
+          - anio
+          - numMes
+          - nombreMes
+          - diaSemana
+      - join_path: partidasVenta.ventas
+        includes:
+          - montoTotal
+      - join_path: partidasVenta.ventas.clientes
+        includes: []
+      - join_path: catalogoProductos
+        includes:
+          - name: descripcion
+            alias: nombreProducto
+          - linea
+          - marca
+
+    dimensions:
+      - name: id
+        sql: "{partidasVenta.venta} || '-' || {partidasVenta.skuRaw}"
+        type: string
+        primary_key: true
+        title: "ID Único"
+
+      - name: sku
+        sql: "{partidasVenta.skuRaw}"
+        type: string
+        title: "SKU"
+      
+      - name: nombreCliente
+        sql: "{clientes.nombreCliente}"
+        type: string
+        title: "Cliente"
+      
+      - name: codigoCliente
+        sql: "{ventas.cliente}"
+        type: string
+        title: "Código Cliente"
+
+      - name: numeroTicket
+        sql: "{partidasVenta.venta}"
+        type: string
+        title: "Folio Ticket"
+
+    measures:
+      # NOTA: Usamos medidas con tipo sum/count_distinct apropiado
+      # El filtro 'is_viable' se aplica correctamente
+      
+      - name: ingresoTotal
+        sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
+        type: sum
+        format: currency
+        title: "Venta Neta ($)"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+
+      - name: costoTotal
+        sql: "{partidasVenta.cantidad_dim} * {partidasVenta.costo_unitario_calc}"
+        type: sum
+        format: currency
+        title: "Costo Total ($)"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+
+      - name: utilidadBruta
+        sql: "({partidasVenta.cantidad_dim} * {partidasVenta.precio}) - ({partidasVenta.cantidad_dim} * {partidasVenta.costo_unitario_calc})"
+        type: sum
+        format: currency
+        title: "Utilidad Bruta ($)"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+
+      - name: cantidadVendida
+        sql: "{partidasVenta.cantidad_dim}"
+        type: sum
+        title: "Unidades Vendidas"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+
+      - name: conteoTickets
+        sql: "{partidasVenta.venta}"
+        type: count_distinct
+        title: "# Tickets"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+
+      # --- SOLUCIÓN DEL PROBLEMA ORIGINAL ---
+      # Medida calculada usando referencias a otras medidas
+      - name: valorTicketPromedio
+        sql: "{ingresoTotal} / NULLIF({conteoTickets}, 0)"
+        type: number
+        format: currency
+        title: "Ticket Promedio (AOV)"

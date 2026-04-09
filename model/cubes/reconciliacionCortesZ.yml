@@ -1,0 +1,153 @@
+cubes:
+  - name: reconciliacionCortesZ
+    title: "Cortes Z Diarios (Reconciliación)"
+    description: |
+      Cortes Z agregados por día y sucursal para reconciliación con ventas del sistema.
+      
+      FILTROS APLICADOS:
+      - Solo cortes tipo 'Z' (cierre de día)
+      - Excluye estación 'COBRANZA' (depósitos/transferencias, no ventas POS)
+      - Excluye 'DPBodega-Test' (sucursal de prueba)
+      - Agregación: día + sucursal
+      
+      NOTA: CEDIS incluido pero puede tener diferencias grandes por ventas B2B sin POS.
+    
+    sql: |
+      SELECT 
+        partition_date AS fecha,
+        sucursal,
+        SUM(CAST(totalventas AS DOUBLE)) as ventas_z,
+        SUM(CAST(totalcaja AS DOUBLE)) as efectivo_caja,
+        SUM(CAST(totalcaja AS DOUBLE)) - SUM(CAST(totalventas AS DOUBLE)) as diferencia_z,
+        SUM(CAST(totalingresos AS DOUBLE)) as total_ingresos,
+        SUM(CAST(totalingresos AS DOUBLE)) - SUM(CAST(totalcaja AS DOUBLE)) as retiros_efectivo,
+        SUM(CAST(ventasimpuesto10 AS DOUBLE)) as ventas_impuesto10,
+        SUM(CAST(impuesto10 AS DOUBLE)) as impuesto10_sum,
+        SUM(CAST(ventasimpuesto15 AS DOUBLE)) as ventas_impuesto15,
+        SUM(CAST(impuesto15 AS DOUBLE)) as impuesto15_sum,
+        SUM(CAST(clientesatendidos AS INTEGER)) as clientes_atendidos,
+        COUNT(*) as num_cortes_z
+      FROM canastos_tfx.tfx_table_cortes
+      WHERE partition_date < DATE '2025-11-20'
+        AND corte = 'z'
+        AND sucursal != 'DPBodega-Test'
+        AND (estacion IS NULL OR estacion != 'COBRANZA')
+      GROUP BY partition_date, sucursal
+    
+    public: false
+
+    joins:
+      - name: reconciliacionVentasDiarias
+        relationship: one_to_one
+        sql: "{CUBE}.fecha = {reconciliacionVentasDiarias.fecha} AND {CUBE}.sucursal = {reconciliacionVentasDiarias.sucursal}"
+
+    dimensions:
+      # --- PK OBLIGATORIA ---
+      - name: id
+        sql: "CAST({CUBE}.fecha AS VARCHAR) || '-' || {CUBE}.sucursal"
+        type: string
+        primary_key: true
+        title: "ID Agregado"
+        description: "Clave única: fecha-sucursal"
+
+      # --- Dimensiones de Agregación ---
+      - name: fecha
+        sql: "{CUBE}.fecha"
+        type: time
+        title: "Fecha"
+        description: "Fecha del corte Z (agregación diaria)"
+
+      - name: sucursal
+        sql: "{CUBE}.sucursal"
+        type: string
+        title: "Sucursal"
+
+    measures:
+      # --- Ventas Reportadas en Z ---
+      - name: ventasZ
+        sql: "{CUBE}.ventas_z"
+        type: sum
+        format: currency
+        title: "Ventas Reportadas (Z)"
+        description: "Total de ventas según reporte Z"
+
+      # --- Efectivo en Caja ---
+      - name: efectivoCaja
+        sql: "{CUBE}.efectivo_caja"
+        type: sum
+        format: currency
+        title: "Efectivo en Caja"
+        description: "Dinero físico contabilizado en caja"
+
+      # --- Diferencia Z (Efectivo - Ventas) ---
+      - name: diferenciaZ
+        sql: "{CUBE}.diferencia_z"
+        type: sum
+        format: currency
+        title: "Diferencia Z (Efectivo - Ventas)"
+        description: "Faltante o sobrante según corte Z"
+
+      # --- Total Ingresos ---
+      - name: totalIngresos
+        sql: "{CUBE}.total_ingresos"
+        type: sum
+        format: currency
+        title: "Total Ingresos"
+        description: "Ingresos en efectivo ANTES de retiros programados"
+
+      # --- Retiros de Efectivo ---
+      - name: retirosEfectivo
+        sql: "{CUBE}.retiros_efectivo"
+        type: sum
+        format: currency
+        title: "Retiros de Efectivo"
+        description: |
+          Retiros programados de efectivo por seguridad.
+          Calculado como: Total Ingresos - Efectivo en Caja.
+          Los retiros típicamente son en montos redondos ($2K, $5K, $8K, $10K).
+
+      # --- Impuestos ---
+      - name: ventasImpuesto10
+        sql: "{CUBE}.ventas_impuesto10"
+        type: sum
+        format: currency
+        title: "Ventas con Impuesto 10%"
+
+      - name: impuesto10
+        sql: "{CUBE}.impuesto10_sum"
+        type: sum
+        format: currency
+        title: "Impuesto 10%"
+
+      - name: ventasImpuesto15
+        sql: "{CUBE}.ventas_impuesto15"
+        type: sum
+        format: currency
+        title: "Ventas con Impuesto 15%"
+
+      - name: impuesto15
+        sql: "{CUBE}.impuesto15_sum"
+        type: sum
+        format: currency
+        title: "Impuesto 15%"
+
+      # --- Clientes ---
+      - name: clientesAtendidos
+        sql: "{CUBE}.clientes_atendidos"
+        type: sum
+        title: "# Clientes Atendidos"
+        description: "Número de clientes según Z"
+
+      # --- Conteos ---
+      - name: numCortesZ
+        sql: "{CUBE}.num_cortes_z"
+        type: sum
+        title: "# Cortes Z"
+        description: "Número de cortes Z realizados"
+
+      # --- Ticket Promedio ---
+      - name: ticketPromedioZ
+        sql: "{CUBE}.ventas_z / NULLIF({CUBE}.clientes_atendidos, 0)"
+        type: avg
+        format: currency
+        title: "Ticket Promedio (Z)"

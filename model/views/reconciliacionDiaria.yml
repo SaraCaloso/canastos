@@ -1,0 +1,147 @@
+views:
+  - name: reconciliacionDiaria
+    title: "4. Reconciliación Diaria (Ventas vs Cortes Z)"
+    description: |
+      Reconciliación entre ventas del sistema ERP y cortes Z del POS.
+      Agregación: DÍA + SUCURSAL
+      
+      CLAVES PARA INTERPRETAR:
+      1. El reporte Z NO resta devoluciones → Comparar con Ventas BRUTAS del sistema
+      2. Ventas Z = todos los métodos de pago (efectivo + tarjeta + crédito)
+      3. Efectivo Caja = solo efectivo físico (diferencia normal: 40-80% por tarjetas)
+      4. Una sucursal puede tener múltiples cajas → Este view suma todos los cortes Z del día
+      
+      FILTROS:
+      - Excluye estación COBRANZA (depósitos, no ventas)
+      - Excluye DPBodega-Test (sucursal de prueba)
+      - CEDIS incluido pero puede tener grandes diferencias por ventas B2B sin POS
+    
+    public: true
+
+    cubes:
+      # --- Ventas del Sistema ERP ---
+      - join_path: reconciliacionVentasDiarias
+        includes:
+          # Dimensiones (solo de este cube para evitar conflictos)
+          - sucursal
+          # Dimensiones temporales (calculadas directamente en el cubo)
+          - anio
+          - numMes
+          - nombreMes
+          - diaSemana
+          
+          # Medidas de Ventas Sistema
+          - ventasBrutas
+          - devoluciones
+          - ventasNetas
+          - numVentas
+          - numDevoluciones
+          - descuentos
+          - impuestos
+          - costos
+
+      # --- Cortes Z del POS ---
+      - join_path: reconciliacionCortesZ
+        includes:
+          # NO incluir dimensiones (ya están en el primer cube)
+          # Solo Medidas de Cortes Z
+          - ventasZ
+          - efectivoCaja
+          - diferenciaZ
+          - clientesAtendidos
+          - ticketPromedioZ
+          - numCortesZ
+          - totalIngresos
+          - retirosEfectivo
+          - ventasImpuesto10
+          - impuesto10
+          - ventasImpuesto15
+          - impuesto15
+
+    measures:
+      # --- DIFERENCIA PRINCIPAL: Sistema vs Z ---
+      - name: diferenciaSistemaVsZ
+        sql: "{reconciliacionVentasDiarias.ventasBrutas} - {reconciliacionCortesZ.ventasZ}"
+        type: number
+        format: currency
+        title: "Diferencia: Sistema vs Z"
+        description: |
+          (Ventas Brutas Sistema) - (Ventas Z)
+          Positivo = Sistema > Z | Negativo = Z > Sistema
+          Causas comunes: ventas a crédito, sincronización, timing de documentos
+
+      # --- Efectivo vs Ventas Z ---
+      - name: diferenciaEfectivoVsZ
+        sql: "{reconciliacionCortesZ.efectivoCaja} - {reconciliacionCortesZ.ventasZ}"
+        type: number
+        format: currency
+        title: "Diferencia: Efectivo vs Ventas Z"
+        description: |
+          (Efectivo en Caja) - (Ventas Z)
+          Diferencia negativa es NORMAL: ventas con tarjeta/crédito (típico: -40% a -80%)
+          Solo si es positivo o muy cercano a 0% requiere investigación
+
+      # --- Impacto Devoluciones ---
+      - name: impactoDevoluciones
+        sql: "{reconciliacionVentasDiarias.devoluciones}"
+        type: number
+        format: currency
+        title: "Devoluciones (no en Z)"
+        description: "El Z no resta devoluciones. Esta es la diferencia esperada al comparar ventas netas vs Z"
+
+      # --- Ventas No-Efectivo ---
+      - name: ventasNoEfectivo
+        sql: "{reconciliacionCortesZ.ventasZ} - {reconciliacionCortesZ.totalIngresos}"
+        type: number
+        format: currency
+        title: "Ventas No-Efectivo (estimado)"
+        description: "Ventas con tarjeta/crédito/vales. (Ventas Z) - (Total Ingresos Efectivo)"
+
+      - name: porcentajeVentasNoEfectivo
+        sql: |
+          ({reconciliacionCortesZ.ventasZ} - {reconciliacionCortesZ.totalIngresos})
+          / NULLIF({reconciliacionCortesZ.ventasZ}, 0) * 100
+        type: number
+        format: percent
+        title: "% Ventas No-Efectivo"
+        description: "Típico: 40-80% en tiendas con terminal"
+
+      # --- Tasas ---
+      - name: tasaDevoluciones
+        sql: |
+          {reconciliacionVentasDiarias.devoluciones} 
+          / NULLIF({reconciliacionVentasDiarias.ventasBrutas}, 0) * 100
+        type: number
+        format: percent
+        title: "% Devoluciones"
+        description: "Devoluciones / Ventas Brutas"
+
+      - name: porcentajeDiferenciaSistemaVsZ
+        sql: |
+          ({reconciliacionVentasDiarias.ventasBrutas} - {reconciliacionCortesZ.ventasZ})
+          / NULLIF({reconciliacionCortesZ.ventasZ}, 0) * 100
+        type: number
+        format: percent
+        title: "% Diferencia Sistema vs Z"
+        description: "Cerca de 0% = buena sincronización"
+
+    segments:
+      - name: conDevoluciones
+        sql: "{reconciliacionVentasDiarias.devoluciones} > 0"
+        title: "Con Devoluciones"
+
+      - name: sistemaMayorQueZ
+        sql: "{reconciliacionVentasDiarias.ventasBrutas} > {reconciliacionCortesZ.ventasZ}"
+        title: "Sistema > Z"
+        description: "Puede indicar ventas a crédito o retrasos"
+
+      - name: zMayorQueSistema
+        sql: "{reconciliacionVentasDiarias.ventasBrutas} < {reconciliacionCortesZ.ventasZ}"
+        title: "Z > Sistema"
+        description: "Puede indicar ventas no registradas en ERP"
+
+      - name: diferenciaSignificativa
+        sql: |
+          ABS({reconciliacionVentasDiarias.ventasBrutas} - {reconciliacionCortesZ.ventasZ}) > 1000
+        title: "Diferencia > $1,000"
+        description: "Requiere revisión"

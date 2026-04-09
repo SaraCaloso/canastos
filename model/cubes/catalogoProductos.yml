@@ -1,0 +1,53 @@
+cubes:
+  - name: catalogoProductos
+    title: "Catálogo de Productos"
+    description: "Catálogo SOLO de productos NUMÉRICOS del inventario - Alfanuméricos pendientes"
+    public: true
+    
+    sql: |
+      -- ========================================
+      -- SOLO Productos NUMÉRICOS del inventario histórico
+      -- Normalización: SKUs como string Y como integer para joins
+      -- SKU es ÚNICO a nivel empresa (sin agrupar por sucursal)
+      -- ========================================
+      SELECT 
+        CAST(articulo AS VARCHAR) as sku_str,
+        CAST(articulo AS BIGINT) as sku_int,
+        MAX(descrip) as descripcion,
+        MAX(linea) as linea, 
+        MAX(marca) as marca
+      FROM canastos_tfx.tfx_table_inv
+      WHERE TRY_CAST(articulo AS BIGINT) IS NOT NULL
+      GROUP BY CAST(articulo AS VARCHAR), CAST(articulo AS BIGINT)
+
+    dimensions:
+      - name: id
+        sql: "{CUBE}.sku_str"
+        type: string
+        primary_key: true
+        title: "ID Producto"
+
+      - name: sku
+        sql: "{CUBE}.sku_str"
+        type: string
+        title: "SKU (String)"
+      
+      - name: skuInt
+        sql: "{CUBE}.sku_int"
+        type: number
+        title: "SKU (Numérico)"
+
+      - name: descripcion
+        sql: "{CUBE}.descripcion"
+        type: string
+        title: "Descripción"
+
+      - name: linea
+        sql: "{CUBE}.linea"
+        type: string
+        title: "Línea"
+
+      - name: marca
+        sql: "{CUBE}.marca"
+        type: string
+        title: "Marca"

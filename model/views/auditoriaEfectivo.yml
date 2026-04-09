@@ -1,0 +1,99 @@
+views:
+  - name: auditoriaEfectivo
+    title: "3. Auditoría de Efectivo"
+    description: |
+      Auditoría y control de efectivo por corte de caja.
+      Compara efectivo recaudado vs ventas reportadas en Z.
+      
+      CASOS DE USO:
+      - Detectar faltantes/sobrantes de caja por sucursal/estación
+      - Analizar diferencias entre efectivo y reporte Z
+      - Monitorear cortes de caja y cajeros
+      - Identificar patrones de faltantes por día/hora/cajero
+      
+      NOTA: Para análisis de devoluciones y reconciliación contable,
+      usar la vista 'reconciliacionEfectivo'.
+    
+    public: true
+
+    cubes:
+      # --- Datos de Cortes Z ---
+      - join_path: cortesDiarios
+        includes:
+          # Dimensiones
+          - fechaCorte
+          - sucursal
+          - numeroCorte
+          - estacion
+          - tipoCorte
+          - horaCorte
+          # Dimensiones temporales (calculadas directamente en el cubo)
+          - anio
+          - numMes
+          - nombreMes
+          - diaSemana
+          
+          # Medidas de Cortes Z
+          - ventasReportadasZ
+          - efectivoCaja
+          - totalIngresos
+          - clientesAtendidos
+          - ticketPromedioZ
+          - conteoCortes
+          
+          # Impuestos
+          - ventasConImpuesto10
+          - impuesto10
+          - ventasConImpuesto15
+          - impuesto15
+
+    measures:
+      # --- Medidas de Diferencia (Cortes Z) ---
+      - name: diferencia
+        sql: "{cortesDiarios.efectivoCaja} - {cortesDiarios.ventasReportadasZ}"
+        type: number
+        format: currency
+        title: "Diferencia (Efectivo - Venta Z)"
+        description: |
+          Diferencia entre efectivo en caja y ventas reportadas en Z.
+          - Positivo: Sobrante de caja
+          - Negativo: Faltante de caja
+          - Cero: Cuadre perfecto
+          
+          NOTA: Esta diferencia NO considera devoluciones.
+          Para análisis ajustado, usar 'reconciliacionEfectivo'.
+
+      - name: porcentajeDiferencia
+        sql: |
+          ({cortesDiarios.efectivoCaja} - {cortesDiarios.ventasReportadasZ}) 
+          / NULLIF({cortesDiarios.ventasReportadasZ}, 0) * 100
+        type: number
+        format: percent
+        title: "% Diferencia"
+        description: "Porcentaje de diferencia respecto a las ventas reportadas"
+
+    segments:
+      # --- Segmentos de Cortes ---
+      - name: conFaltantes
+        sql: "{cortesDiarios.efectivoCaja} < {cortesDiarios.ventasReportadasZ}"
+        title: "Con Faltantes de Caja"
+        description: "Cortes donde el efectivo es menor a las ventas reportadas"
+
+      - name: conSobrantes
+        sql: "{cortesDiarios.efectivoCaja} > {cortesDiarios.ventasReportadasZ}"
+        title: "Con Sobrantes de Caja"
+        description: "Cortes donde el efectivo es mayor a las ventas reportadas"
+
+      - name: cuadrados
+        sql: "{cortesDiarios.efectivoCaja} = {cortesDiarios.ventasReportadasZ}"
+        title: "Cuadrados (Sin Diferencia)"
+        description: "Cortes donde el efectivo coincide exactamente con las ventas"
+
+      - name: soloZ
+        sql: "{cortesDiarios.tipoCorte} = 'z'"
+        title: "Solo Cortes Z (Cierre de Día)"
+
+      - name: diferenciaSignificativa
+        sql: "ABS({cortesDiarios.efectivoCaja} - {cortesDiarios.ventasReportadasZ}) > 1000"
+        title: "Diferencia > $1,000"
+        description: "Cortes con diferencias mayores a $1,000 (positivas o negativas)"

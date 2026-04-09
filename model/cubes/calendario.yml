@@ -1,0 +1,34 @@
+cubes:
+  - name: calendario
+    title: "Calendario"
+    sql_table: canastos_tfx.calendar_table
+    public: true
+    
+    joins: []
+
+    dimensions:
+      - name: fecha
+        sql: "{CUBE}.cal_date"
+        type: time
+        primary_key: true
+        title: "Fecha"
+
+      - name: anio
+        sql: "{CUBE}.year"
+        type: number
+        title: "Año"
+
+      - name: numMes
+        sql: "{CUBE}.month"
+        type: number
+        title: "Mes (Num)"
+
+      - name: nombreMes
+        sql: "{CUBE}.month_name"
+        type: string
+        title: "Mes"
+
+      - name: diaSemana
+        sql: "{CUBE}.day_of_week_name"
+        type: string
+        title: "Día Semana"

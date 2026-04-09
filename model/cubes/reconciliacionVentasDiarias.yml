@@ -1,0 +1,162 @@
+cubes:
+  - name: reconciliacionVentasDiarias
+    title: "Ventas Diarias Sistema (Reconciliación)"
+    description: |
+      Ventas agregadas por día y sucursal desde el sistema ERP.
+      Usado exclusivamente para reconciliación con cortes Z.
+      
+      LÓGICA:
+      - Solo documentos VIABLES (is_viable = true)
+      - Solo documentos COMPLETADOS (estado = 'CO')
+      - Ventas: REM + FAC
+      - Devoluciones: DEV + DV
+      - Excluye CEDIS (ventas mayoristas B2B sin POS)
+      - Excluye DPBodega-Test (sucursal de prueba)
+      
+      IMPORTANTE: Este cube NO debe usarse para análisis general de ventas.
+      Para eso usar 'analiticaVentas' o 'analiticaDevoluciones'.
+    
+    sql: |
+      SELECT 
+        partition_date AS fecha,
+        sucursal,
+        SUM(CASE WHEN tipo_doc IN ('REM', 'FAC') THEN CAST(importe AS DOUBLE) ELSE 0 END) as ventas_brutas,
+        SUM(CASE WHEN tipo_doc IN ('DEV', 'DV') THEN CAST(importe AS DOUBLE) ELSE 0 END) as devoluciones,
+        SUM(CASE WHEN tipo_doc IN ('REM', 'FAC') THEN CAST(importe AS DOUBLE) 
+                 WHEN tipo_doc IN ('DEV', 'DV') THEN -CAST(importe AS DOUBLE) 
+                 ELSE 0 END) as ventas_netas,
+        SUM(CASE WHEN tipo_doc IN ('REM', 'FAC') THEN 1 ELSE 0 END) as num_ventas,
+        SUM(CASE WHEN tipo_doc IN ('DEV', 'DV') THEN 1 ELSE 0 END) as num_devoluciones,
+        SUM(CASE WHEN tipo_doc IN ('REM', 'FAC') THEN CAST(descuento AS DOUBLE) ELSE 0 END) as descuentos,
+        SUM(CASE WHEN tipo_doc IN ('REM', 'FAC') THEN CAST(impuesto AS DOUBLE) ELSE 0 END) as impuestos,
+        SUM(CASE WHEN tipo_doc IN ('REM', 'FAC') THEN CAST(costo AS DOUBLE) ELSE 0 END) as costos
+      FROM canastos_tfx.tfx_table_ventas
+      WHERE is_viable = true
+        AND estado = 'CO'
+        AND sucursal != 'DPBodega-Test'
+      GROUP BY partition_date, sucursal
+    
+    public: false
+
+    joins: []
+
+    dimensions:
+      # --- PK OBLIGATORIA ---
+      - name: id
+        sql: "CAST({CUBE}.fecha AS VARCHAR) || '-' || {CUBE}.sucursal"
+        type: string
+        primary_key: true
+        title: "ID Agregado"
+        description: "Clave única: fecha-sucursal"
+
+      # --- Dimensiones de Agregación ---
+      - name: fecha
+        sql: "{CUBE}.fecha"
+        type: time
+        title: "Fecha"
+        description: "Fecha de la venta (agregación diaria)"
+
+      - name: anio
+        sql: "EXTRACT(YEAR FROM {CUBE}.fecha)"
+        type: number
+        title: "Año"
+
+      - name: numMes
+        sql: "EXTRACT(MONTH FROM {CUBE}.fecha)"
+        type: number
+        title: "Mes (Num)"
+
+      - name: nombreMes
+        sql: |
+          CASE EXTRACT(MONTH FROM {CUBE}.fecha)
+            WHEN 1 THEN 'January'
+            WHEN 2 THEN 'February'
+            WHEN 3 THEN 'March'
+            WHEN 4 THEN 'April'
+            WHEN 5 THEN 'May'
+            WHEN 6 THEN 'June'
+            WHEN 7 THEN 'July'
+            WHEN 8 THEN 'August'
+            WHEN 9 THEN 'September'
+            WHEN 10 THEN 'October'
+            WHEN 11 THEN 'November'
+            WHEN 12 THEN 'December'
+          END
+        type: string
+        title: "Mes"
+
+      - name: diaSemana
+        sql: |
+          CASE EXTRACT(DOW FROM {CUBE}.fecha)
+            WHEN 0 THEN 'Sunday'
+            WHEN 1 THEN 'Monday'
+            WHEN 2 THEN 'Tuesday'
+            WHEN 3 THEN 'Wednesday'
+            WHEN 4 THEN 'Thursday'
+            WHEN 5 THEN 'Friday'
+            WHEN 6 THEN 'Saturday'
+          END
+        type: string
+        title: "Día Semana"
+
+      - name: sucursal
+        sql: "{CUBE}.sucursal"
+        type: string
+        title: "Sucursal"
+
+    measures:
+      # --- Ventas Brutas (REM + FAC) ---
+      - name: ventasBrutas
+        sql: "{CUBE}.ventas_brutas"
+        type: sum
+        format: currency
+        title: "Ventas Brutas Sistema"
+        description: "Suma de ventas (REM + FAC) completadas y viables"
+
+      # --- Devoluciones (DEV + DV) ---
+      - name: devoluciones
+        sql: "{CUBE}.devoluciones"
+        type: sum
+        format: currency
+        title: "Devoluciones Sistema"
+        description: "Suma de devoluciones (DEV + DV) completadas y viables"
+
+      # --- Ventas Netas (Ventas - Devoluciones) ---
+      - name: ventasNetas
+        sql: "{CUBE}.ventas_netas"
+        type: sum
+        format: currency
+        title: "Ventas Netas Sistema"
+        description: "Ventas brutas menos devoluciones"
+
+      # --- Conteos ---
+      - name: numVentas
+        sql: "{CUBE}.num_ventas"
+        type: sum
+        title: "# Ventas"
+        description: "Número de documentos de venta"
+
+      - name: numDevoluciones
+        sql: "{CUBE}.num_devoluciones"
+        type: sum
+        title: "# Devoluciones"
+        description: "Número de documentos de devolución"
+
+      # --- Componentes Adicionales ---
+      - name: descuentos
+        sql: "{CUBE}.descuentos"
+        type: sum
+        format: currency
+        title: "Descuentos"
+
+      - name: impuestos
+        sql: "{CUBE}.impuestos"
+        type: sum
+        format: currency
+        title: "Impuestos"
+
+      - name: costos
+        sql: "{CUBE}.costos"
+        type: sum
+        format: currency
+        title: "Costos"
