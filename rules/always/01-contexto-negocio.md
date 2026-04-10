@@ -11,7 +11,7 @@ Los usuarios pueden referirse a ella como:
 
 ## Sucursales Disponibles
 
-### Sucursales en Producción (33 totales)
+### Sucursales en Producción (38 totales)
 
 **Durango (sin prefijo):**
 1. 20 DE NOVIEMBRE
