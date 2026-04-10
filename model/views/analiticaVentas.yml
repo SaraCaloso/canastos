@@ -21,11 +21,8 @@ views:
       - join_path: partidasVenta.ventas
         includes:
           - montoTotal
-          # Incluimos cliente del cabecero directamente (sin join a tabla clientes)
-          - name: codigoCliente
-            alias: codigoClienteVenta
-      # ELIMINADO: join a clientes — causaba INNER JOIN que descartaba ventas
-      # sin cliente registrado en tfx_table_clients (ej: MOSTRADOR, PUBLICO GENERAL)
+      # ELIMINADO join a clientes — causaba INNER JOIN que descartaba ventas
+      # sin cliente en tfx_table_clients (mostrador, público general, etc.)
       - join_path: catalogoProductos
         includes:
           - name: descripcion
@@ -45,8 +42,6 @@ views:
         type: string
         title: "SKU"
 
-      # ANTES: usaba {clientes.nombreCliente} → forzaba INNER JOIN a clientes
-      # AHORA: usa el código de cliente del cabecero directamente
       - name: codigoCliente
         sql: "{ventas.cliente}"
         type: string
