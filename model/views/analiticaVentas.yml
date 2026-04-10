@@ -9,12 +9,10 @@ views:
           - venta
           - skuRaw
           - sucursal
-          # Incluimos las nuevas dimensiones auxiliares para que estén disponibles en el contexto
           - is_viable
           - precio
           - cantidad_dim
           - costo_unitario_calc
-          # Dimensiones temporales (calculadas directamente en el cubo)
           - fecha
           - anio
           - numMes
@@ -23,8 +21,11 @@ views:
       - join_path: partidasVenta.ventas
         includes:
           - montoTotal
-      - join_path: partidasVenta.ventas.clientes
-        includes: []
+          # Incluimos cliente del cabecero directamente (sin join a tabla clientes)
+          - name: codigoCliente
+            alias: codigoClienteVenta
+      # ELIMINADO: join a clientes — causaba INNER JOIN que descartaba ventas
+      # sin cliente registrado en tfx_table_clients (ej: MOSTRADOR, PUBLICO GENERAL)
       - join_path: catalogoProductos
         includes:
           - name: descripcion
@@ -43,12 +44,9 @@ views:
         sql: "{partidasVenta.skuRaw}"
         type: string
         title: "SKU"
-      
-      - name: nombreCliente
-        sql: "{clientes.nombreCliente}"
-        type: string
-        title: "Cliente"
-      
+
+      # ANTES: usaba {clientes.nombreCliente} → forzaba INNER JOIN a clientes
+      # AHORA: usa el código de cliente del cabecero directamente
       - name: codigoCliente
         sql: "{ventas.cliente}"
         type: string
@@ -60,9 +58,6 @@ views:
         title: "Folio Ticket"
 
     measures:
-      # NOTA: Usamos medidas con tipo sum/count_distinct apropiado
-      # El filtro 'is_viable' se aplica correctamente
-      
       - name: ingresoTotal
         sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
         type: sum
@@ -96,8 +91,6 @@ views:
         title: "# Tickets"
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
-      # --- SOLUCIÓN DEL PROBLEMA ORIGINAL ---
-      # Medida calculada usando referencias a otras medidas
       - name: valorTicketPromedio
         sql: "{ingresoTotal} / NULLIF({conteoTickets}, 0)"
         type: number
