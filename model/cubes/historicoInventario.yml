@@ -14,8 +14,7 @@ cubes:
         -- Esta subconsulta obtiene el último precio y costo por artículo y sucursal
         -- Evitamos duplicados agrupando aquí mismo
         SELECT 
-          articulo, 
-          sucursal,
+          articulo,
           MAX(precio) as precio_lista,
           AVG(CASE 
             WHEN costo <= 0 OR costo > precio THEN precio * 0.80 
@@ -23,9 +22,8 @@ cubes:
           END) as costo_ajustado
         FROM canastos_tfx.tfx_table_partvta
         WHERE is_viable = true
-        GROUP BY articulo, sucursal
-      ) AS p ON CAST(inv.articulo AS VARCHAR) = CAST(p.articulo AS VARCHAR) 
-            AND inv.sucursal = p.sucursal
+        GROUP BY articulo
+      ) AS p ON CAST(inv.articulo AS VARCHAR) = TRY_CAST(p.articulo AS BIGINT)
     public: true
 
     joins: []
