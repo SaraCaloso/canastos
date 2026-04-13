@@ -36,6 +36,10 @@ views:
           - soloCEDIS
           - inventarioPositivo
           - inventarioNegativo
+
+          # --- LAS NUEVAS COLUMNAS ---
+          - precioConImpuesto
+          - costoUnitario
           
           # Medidas
           - name: cantidadStock
