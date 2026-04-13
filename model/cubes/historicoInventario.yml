@@ -1,7 +1,31 @@
 cubes:
   - name: historicoInventario
     title: "Historico de Inventario"
-    sql_table: canastos_tfx.tfx_table_inv
+    # ANTERIOR SQL
+    # sql_table: canastos_tfx.tfx_table_inv
+    # NUEVO SQL
+    sql: |
+      SELECT 
+        inv.*,
+        p.precio_lista,
+        p.costo_ajustado
+      FROM canastos_tfx.tfx_table_inv AS inv
+      LEFT JOIN (
+        -- Esta subconsulta obtiene el último precio y costo por artículo y sucursal
+        -- Evitamos duplicados agrupando aquí mismo
+        SELECT 
+          articulo, 
+          sucursal,
+          MAX(precio) as precio_lista,
+          AVG(CASE 
+            WHEN costo <= 0 OR costo > precio THEN precio * 0.80 
+            ELSE costo 
+          END) as costo_ajustado
+        FROM canastos_tfx.tfx_table_partvta
+        WHERE is_viable = true
+        GROUP BY articulo, sucursal
+      ) AS p ON CAST(inv.articulo AS VARCHAR) = CAST(p.articulo AS VARCHAR) 
+            AND inv.sucursal = p.sucursal
     public: true
 
     joins: []
@@ -151,3 +175,16 @@ cubes:
         sql: "{CUBE}.existencia"
         type: max
         title: "Stock Máximo"
+
+        # --- NUEVAS DIMENSIONES ---
+      - name: precioConImpuesto
+        sql: "{CUBE}.precio_lista * 1.16" # Ajusta el 1.16 si el IVA es distinto
+        type: number
+        title: "Precio (con Impuesto)"
+        format: currency
+
+      - name: costoUnitario
+        sql: "{CUBE}.costo_ajustado"
+        type: number
+        title: "Costo Unitario"
+        format: currency
