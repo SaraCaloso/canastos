@@ -71,6 +71,7 @@ views:
       - name: impuestosTotales
         sql: "ROUND({partidasVenta.impuesto_value}, 2)"
         type: sum
+        format: currency
         title: "Impuestos ($)"
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
