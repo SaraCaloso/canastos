@@ -11,6 +11,7 @@ views:
           - sucursal
           - is_viable
           - precio
+          - impuesto
           - cantidad_dim
           - costo_unitario_calc
           - fecha
@@ -58,6 +59,13 @@ views:
         type: sum
         format: currency
         title: "Venta Neta ($)"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+
+      - name: impuestosTotales
+        sql: "{partidasVenta.impuesto}"
+        type: sum
+        format: currency
+        title: "Impuestos en tickets"
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
       - name: costoTotal
