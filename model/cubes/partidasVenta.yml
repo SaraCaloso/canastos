@@ -34,6 +34,11 @@ cubes:
         type: string
         title: "Número Venta"
 
+      - name: impuesto_value
+        sql: "{CUBE}.impuesto_value"
+        type: number
+        title: "Impuestos"
+
       - name: skuRaw
         sql: "{CUBE}.articulo"
         type: string
