@@ -23,7 +23,7 @@ cubes:
         FROM canastos_tfx.tfx_table_partvta
         WHERE is_viable = true
         GROUP BY articulo
-      ) AS p ON CAST(inv.articulo AS VARCHAR) = TRY_CAST(p.articulo AS BIGINT)
+      ) AS p ON CAST(inv.articulo AS BIGINT) = TRY_CAST(p.articulo AS BIGINT)
     public: true
 
     joins: []
