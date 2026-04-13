@@ -179,12 +179,12 @@ cubes:
         # --- NUEVAS DIMENSIONES ---
       - name: precioConImpuesto
         sql: "{CUBE}.precio_lista * 1.16" # Ajusta el 1.16 si el IVA es distinto
-        type: number
+        type: max
         title: "Precio (con Impuesto)"
         format: currency
 
       - name: costoUnitario
         sql: "{CUBE}.costo_ajustado"
-        type: number
+        type: max
         title: "Costo Unitario"
         format: currency
