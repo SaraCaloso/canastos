@@ -227,7 +227,6 @@ cubes:
         title: "# Folios con Múltiples Tipos"
         description: "Cuenta folios que tienen conversión de tipo documento (diagnóstico)"
 
-        measures:
   - name: totalImpuesto
     sql: "{CUBE}.impuesto"
     type: sum
