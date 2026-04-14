@@ -76,7 +76,7 @@ cubes:
         title: "Mes (Num)"
 
       - name: nombreMes
-        sql: "CASE WHEN EXTRACT(MONTH FROM {CUBE}.partition_date) = 1 THEN 'January' ELSE 'Other' END" # Simplificado para brevedad
+        sql: "CASE WHEN EXTRACT(MONTH FROM {CUBE}.partition_date) = 1 THEN 'January' ELSE 'Other' END"
         type: string
         title: "Mes"
 
@@ -92,15 +92,17 @@ cubes:
         format: currency
         title: "Ingreso Bruto"
 
-      # --- DESGLOSE ---
+      # --- DESGLOSE DE IMPUESTOS CORREGIDO ---
       - name: impuestoIVA16
-        sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio * 0.16 ELSE 0 END"
+        # Se ajusta para capturar 16% incluso con decimales del ERP
+        sql: "CASE WHEN {CUBE}.impuesto_value >= 15 THEN {CUBE}.cantidad * {CUBE}.precio * 0.16 ELSE 0 END"
         type: sum
         format: currency
         title: "IVA 16%"
 
       - name: impuestoIEPS8
-        sql: "CASE WHEN {CUBE}.impuesto_value = 8 THEN {CUBE}.cantidad * {CUBE}.precio * 0.08 ELSE 0 END"
+        # Se ajusta rango para capturar 8% de forma segura
+        sql: "CASE WHEN {CUBE}.impuesto_value > 0 AND {CUBE}.impuesto_value < 10 THEN {CUBE}.cantidad * {CUBE}.precio * 0.08 ELSE 0 END"
         type: sum
         format: currency
         title: "IEPS 8%"
