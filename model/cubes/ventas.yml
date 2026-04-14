@@ -233,3 +233,24 @@ cubes:
         format: currency
         title: "Impuesto Total (desde Cabecero)"
         description: "Impuesto real según cabecero de venta. Usar con segmento sinDuplicacionPedidos."
+      
+      - name: impuestoTasa0
+        sql: "0"
+        type: sum
+        format: currency
+        title: "IVA 0%"
+        description: "Monto de impuesto para tasa 0 (siempre 0)"
+
+      - name: totalImpuestosPartidas
+        sql: "({impuestoIVA16} + {impuestoIEPS8})"
+        type: number
+        format: currency
+        title: "Total Impuestos (Cálculo Partidas)"
+        description: "Suma de todos los impuestos desglosados calculados por partida"
+
+      - name: ventaNeta
+        sql: "{ingreso} + {totalImpuestosPartidas}"
+        type: number
+        format: currency
+        title: "Venta Total (Con Impuestos)"
+        description: "Suma de Venta Bruta + Impuestos Calculados"
