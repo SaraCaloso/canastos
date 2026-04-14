@@ -91,24 +91,24 @@ cubes:
         type: sum
         format: currency
         title: "Ingreso Bruto"
-
-      # --- DESGLOSE DE IMPUESTOS CORREGIDO ---
+# --- DESGLOSE DE IMPUESTOS CORREGIDO ---
       - name: impuestoIVA16
-        # Se ajusta para capturar 16% incluso con decimales del ERP
-        sql: "CASE WHEN {CUBE}.impuesto_value >= 15 THEN {CUBE}.cantidad * {CUBE}.precio * 0.16 ELSE 0 END"
+        sql: "CASE WHEN {CUBE}.impuesto_value < 0 AND ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)) BETWEEN 0.14 AND 0.18 THEN ABS({CUBE}.impuesto_value) ELSE 0 END"
         type: sum
         format: currency
         title: "IVA 16%"
 
       - name: impuestoIEPS8
-        # Se ajusta rango para capturar 8% de forma segura
-        sql: "CASE WHEN {CUBE}.impuesto_value > 0 AND {CUBE}.impuesto_value < 10 THEN {CUBE}.cantidad * {CUBE}.precio * 0.08 ELSE 0 END"
+        sql: "CASE WHEN {CUBE}.impuesto_value < 0 AND ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)) BETWEEN 0.06 AND 0.10 THEN ABS({CUBE}.impuesto_value) ELSE 0 END"
         type: sum
         format: currency
         title: "IEPS 8%"
 
       - name: totalImpuestosCalculados
-        sql: "{impuestoIVA16} + {impuestoIEPS8}"
+        sql: "ABS({CUBE}.impuesto_value)"
+        type: sum
+        format: currency
+        title: "Total Impuestos (Partidas)"
         type: number
         format: currency
         title: "Total Impuestos (Partidas)"
