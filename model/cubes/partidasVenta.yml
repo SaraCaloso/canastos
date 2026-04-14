@@ -9,8 +9,6 @@ cubes:
         relationship: many_to_one
         sql: "{CUBE}.venta = {ventas.numeroVenta} AND {CUBE}.sucursal = {ventas.sucursal}"
       
-      # JOIN NUMÉRICO: Convertir SKU string con ceros ('001234') a integer (1234)
-      # Solo matchea productos NUMÉRICOS del catálogo
       - name: catalogoProductos
         relationship: many_to_one
         sql: |
@@ -167,7 +165,9 @@ cubes:
         type: sum
         format: currency
         title: "Utilidad"
-        # Medidas desglosadas por tasa:
+
+      # --- DESGLOSE DE IMPUESTOS ---
+
       - name: baseIVA16
         sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
         type: sum
@@ -197,14 +197,14 @@ cubes:
         type: sum
         format: currency
         title: "Base Gravable IVA Tasa 0%"
-        - name: impuestoIVA0
+
+      - name: impuestoIVA0
         sql: "0"
         type: sum
         format: currency
         title: "IVA 0%"
 
       - name: totalImpuestosCalculados
-        # Nota: Sumamos las medidas anteriores usando su nombre interno
         sql: "{impuestoIVA16} + {impuestoIEPS8}"
         type: number
         format: currency
