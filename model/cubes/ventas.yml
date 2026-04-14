@@ -7,14 +7,6 @@ cubes:
     description: |
       ⚠️ ADVERTENCIA: Este cubo contiene cabeceros de documentos.
       Un mismo folio puede tener múltiples registros (PE→FAC, PE→REM).
-      
-      DUPLICACIÓN IDENTIFICADA:
-      - 507 folios con múltiples tipos de documento
-      - 93.5% son PE + REM (Pedido → Remisión)
-      - 6.5% son FAC + PE (Factura + Pedido)
-      
-      RECOMENDACIÓN: Usar vista 'analiticaVentas' para análisis de ventas reales.
-      Si usa este cubo, aplicar segmentos para evitar duplicación.
 
     joins:
       - name: clientes
@@ -25,10 +17,7 @@ cubes:
       - name: ventasValidas
         sql: "{CUBE}.is_viable = true"
         title: "Solo Ventas Viables"
-        description: "Filtra registros marcados como viables en el sistema"
 
-      # --- SEGMENTOS PARA PREVENIR DUPLICACIÓN ---
-      
       - name: sinDuplicacionPedidos
         sql: |
           {CUBE}.tipo_doc NOT IN ('PE')
@@ -38,33 +27,7 @@ cubes:
               AND v2.sucursal = {CUBE}.sucursal
               AND v2.tipo_doc IN ('FAC', 'REM')
           )
-        title: "🎯 Sin Duplicar Pedidos (RECOMENDADO)"
-        description: "Excluye PE cuando existe FAC o REM para el mismo folio. Previene duplicación automáticamente."
-
-      - name: soloDocumentosFiscales
-        sql: "{CUBE}.tipo_doc IN ('FAC', 'TIC', 'NC', 'DV')"
-        title: "Solo Documentos Fiscales"
-        description: "FAC, TIC, NC, DV - Excluye PE y REM que son documentos intermedios"
-
-      - name: soloFacturas
-        sql: "{CUBE}.tipo_doc = 'FAC'"
-        title: "Solo Facturas (FAC)"
-        description: "Filtra únicamente facturas fiscales"
-
-      - name: soloRemisiones
-        sql: "{CUBE}.tipo_doc = 'REM'"
-        title: "Solo Remisiones (REM)"
-        description: "Filtra únicamente remisiones"
-
-      - name: soloPedidos
-        sql: "{CUBE}.tipo_doc = 'PE'"
-        title: "Solo Pedidos (PE)"
-        description: "⚠️ Puede incluir pedidos que luego se facturaron/remisionaron"
-
-      - name: soloTickets
-        sql: "{CUBE}.tipo_doc = 'TIC'"
-        title: "Solo Tickets (TIC)"
-        description: "Tickets de venta directa"
+        title: "🎯 Sin Duplicar Pedidos"
 
     dimensions:
       - name: id
@@ -72,123 +35,23 @@ cubes:
         type: string
         primary_key: true
         title: "ID Venta Único"
-        description: "Incluye tipo de documento para permitir coexistencia de PE/FAC/REM con mismo folio"
 
       - name: numeroVenta
         sql: "{CUBE}.venta"
         type: string
         title: "Folio"
 
-      - name: cliente
-        sql: "{CUBE}.cliente"
+      - name: sucursal
+        sql: "{CUBE}.sucursal"
         type: string
-        title: "Código Cliente"
-
-      - name: tipoDocumento
-        sql: "{CUBE}.tipo_doc"
-        type: string
-        title: "Tipo Documento"
-        description: "PE=Pedido, FAC=Factura, REM=Remisión, TIC=Ticket, NC=Nota Crédito, DV=Devolución"
+        title: "Sucursal"
 
       - name: fechaTransaccion
         sql: "{CUBE}.partition_date"
         type: time
         title: "Fecha Venta"
 
-      - name: anio
-        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
-        type: number
-        title: "Año"
-
-      - name: numMes
-        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
-        type: number
-        title: "Mes (Num)"
-
-      - name: nombreMes
-        sql: |
-          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1 THEN 'January'
-            WHEN 2 THEN 'February'
-            WHEN 3 THEN 'March'
-            WHEN 4 THEN 'April'
-            WHEN 5 THEN 'May'
-            WHEN 6 THEN 'June'
-            WHEN 7 THEN 'July'
-            WHEN 8 THEN 'August'
-            WHEN 9 THEN 'September'
-            WHEN 10 THEN 'October'
-            WHEN 11 THEN 'November'
-            WHEN 12 THEN 'December'
-          END
-        type: string
-        title: "Mes"
-
-      - name: diaSemana
-        sql: |
-          CASE EXTRACT(DOW FROM {CUBE}.partition_date)
-            WHEN 0 THEN 'Sunday'
-            WHEN 1 THEN 'Monday'
-            WHEN 2 THEN 'Tuesday'
-            WHEN 3 THEN 'Wednesday'
-            WHEN 4 THEN 'Thursday'
-            WHEN 5 THEN 'Friday'
-            WHEN 6 THEN 'Saturday'
-          END
-        type: string
-        title: "Día Semana"
-
-      - name: sucursal
-        sql: "{CUBE}.sucursal"
-        type: string
-        title: "Sucursal"
-
-      - name: estado
-        sql: "{CUBE}.estado"
-        type: string
-        title: "Estado"
-
-      - name: tieneDuplicacionTipoDoc
-        sql: |
-          CASE 
-            WHEN EXISTS (
-              SELECT 1 FROM canastos_tfx.tfx_table_ventas v2
-              WHERE v2.venta = {CUBE}.venta 
-                AND v2.sucursal = {CUBE}.sucursal
-                AND v2.tipo_doc != {CUBE}.tipo_doc
-            ) THEN 'Sí'
-            ELSE 'No'
-          END
-        type: string
-        title: "¿Tiene Múltiples Tipos Doc?"
-        description: "Indica si el folio tiene conversión de tipo (PE→FAC, PE→REM)"
-
     measures:
-      - name: conteo
-        type: count
-        title: "# Documentos"
-        description: "⚠️ Cuenta documentos. Un folio puede aparecer múltiples veces (PE+FAC, PE+REM)."
-
-      - name: conteoFoliosUnicos
-        sql: "{CUBE}.venta || '-' || {CUBE}.sucursal"
-        type: count_distinct
-        title: "# Folios Únicos"
-        description: "Cuenta folios sin duplicar por tipo de documento"
-
-      - name: montoTotal
-        sql: "{CUBE}.importe"
-        type: sum
-        format: currency
-        title: "Monto Total (⚠️ Puede Duplicar)"
-        description: |
-          ⚠️ PRECAUCIÓN: Suma todos los documentos sin filtrar.
-          Puede duplicar ventas si existen PE+FAC o PE+REM para el mismo folio.
-          
-          SOLUCIONES:
-          1. Usar medida 'Monto Sin Duplicar' (recomendado)
-          2. Aplicar segmento 'Sin Duplicar Pedidos'
-          3. Usar vista 'analiticaVentas' para datos exactos
-
       - name: montoSinDuplicar
         sql: |
           CASE 
@@ -203,26 +66,26 @@ cubes:
           END
         type: sum
         format: currency
-        title: "✅ Monto Sin Duplicar (USAR ESTA)"
-        description: |
-          Calcula el monto correctamente evitando duplicación:
-          - Si es FAC, REM, TIC, NC o DV: cuenta el importe
-          - Si es PE sin FAC/REM asociado: cuenta el importe
-          - Si es PE con FAC/REM: NO cuenta (evita duplicar)
-          
-          Esta es la medida RECOMENDADA para reportes de ventas.
+        title: "✅ Monto Sin Duplicar"
 
-      - name: conteoFoliosConDuplicacion
+      - name: impuestoSinDuplicar
         sql: |
           CASE 
-            WHEN EXISTS (
+            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV') THEN {CUBE}.impuesto
+            WHEN NOT EXISTS (
               SELECT 1 FROM canastos_tfx.tfx_table_ventas v2
               WHERE v2.venta = {CUBE}.venta 
                 AND v2.sucursal = {CUBE}.sucursal
-                AND v2.tipo_doc != {CUBE}.tipo_doc
-            ) THEN {CUBE}.venta || '-' || {CUBE}.sucursal
-            ELSE NULL
+                AND v2.tipo_doc IN ('FAC', 'REM')
+            ) THEN {CUBE}.impuesto
+            ELSE 0
           END
-        type: count_distinct
-        title: "# Folios con Múltiples Tipos"
-        description: "Cuenta folios que tienen conversión de tipo documento (diagnóstico)"
+        type: sum
+        format: currency
+        title: "✅ Impuesto Total Sin Duplicar"
+
+      - name: totalImpuesto
+        sql: "{CUBE}.impuesto"
+        type: sum
+        format: currency
+        title: "Impuesto Total (Bruto)"
