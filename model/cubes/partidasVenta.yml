@@ -57,77 +57,6 @@ cubes:
         type: time
         title: "Fecha"
 
-      - name: anio
-        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
-        type: number
-        title: "Año"
-
-      - name: numMes
-        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
-        type: number
-        title: "Mes (Num)"
-
-      - name: nombreMes
-        sql: |
-          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1 THEN 'January'
-            WHEN 2 THEN 'February'
-            WHEN 3 THEN 'March'
-            WHEN 4 THEN 'April'
-            WHEN 5 THEN 'May'
-            WHEN 6 THEN 'June'
-            WHEN 7 THEN 'July'
-            WHEN 8 THEN 'August'
-            WHEN 9 THEN 'September'
-            WHEN 10 THEN 'October'
-            WHEN 11 THEN 'November'
-            WHEN 12 THEN 'December'
-          END
-        type: string
-        title: "Mes"
-
-      - name: diaSemana
-        sql: |
-          CASE EXTRACT(DOW FROM {CUBE}.partition_date)
-            WHEN 0 THEN 'Sunday'
-            WHEN 1 THEN 'Monday'
-            WHEN 2 THEN 'Tuesday'
-            WHEN 3 THEN 'Wednesday'
-            WHEN 4 THEN 'Thursday'
-            WHEN 5 THEN 'Friday'
-            WHEN 6 THEN 'Saturday'
-          END
-        type: string
-        title: "Día Semana"
-
-      - name: is_viable
-        sql: "{CUBE}.is_viable"
-        type: boolean
-        title: "Es Viable"
-        public: false
-
-      - name: precio
-        sql: "{CUBE}.precio"
-        type: number
-        title: "Precio Unitario"
-        public: false
-      
-      - name: cantidad_dim
-        sql: "{CUBE}.cantidad"
-        type: number
-        title: "Cantidad Unitario"
-        public: false
-
-      - name: costo_unitario_calc
-        sql: |
-          CASE 
-            WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
-            THEN {CUBE}.precio * 0.80
-            ELSE {CUBE}.costo
-          END
-        type: number
-        public: false
-
     measures:
       - name: costoAjustado
         sql: |
@@ -139,10 +68,6 @@ cubes:
         type: sum
         title: "Costo Unitario Ajustado"
    
-      - name: conteo
-        type: count
-        title: "# Líneas"
-
       - name: cantidad
         sql: "{CUBE}.cantidad"
         type: sum
@@ -153,20 +78,6 @@ cubes:
         type: sum
         format: currency
         title: "Venta Bruta"
-
-      - name: costo
-        sql: "{CUBE}.cantidad * {costoAjustado}"
-        type: sum
-        format: currency
-        title: "Costo Total"
-
-      - name: margen
-        sql: "({CUBE}.cantidad * {CUBE}.precio) - ({CUBE}.cantidad * {costoAjustado})"
-        type: sum
-        format: currency
-        title: "Utilidad"
-
-      # --- DESGLOSE DE IMPUESTOS ---
 
       - name: baseIVA16
         sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
@@ -209,7 +120,6 @@ cubes:
         type: number
         format: currency
         title: "Total Impuestos (Detalle)"
-        description: "Suma de IVA 16% e IEPS 8% calculados por partida"
 
       - name: ventaNetaCalculada
         sql: "{ingreso} + {totalImpuestosCalculados}"
