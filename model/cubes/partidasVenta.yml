@@ -197,3 +197,22 @@ cubes:
         type: sum
         format: currency
         title: "Base Gravable IVA Tasa 0%"
+        - name: impuestoIVA0
+        sql: "0"
+        type: sum
+        format: currency
+        title: "IVA 0%"
+
+      - name: totalImpuestosCalculados
+        # Nota: Sumamos las medidas anteriores usando su nombre interno
+        sql: "{impuestoIVA16} + {impuestoIEPS8}"
+        type: number
+        format: currency
+        title: "Total Impuestos (Detalle)"
+        description: "Suma de IVA 16% e IEPS 8% calculados por partida"
+
+      - name: ventaNetaCalculada
+        sql: "{ingreso} + {totalImpuestosCalculados}"
+        type: number
+        format: currency
+        title: "Venta Neta (Bruta + Impuestos)"
