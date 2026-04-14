@@ -1,99 +1,58 @@
 cubes:
-  - name: ventas
-    title: "Ventas (Cabecero)"
-    sql_table: canastos_tfx.tfx_table_ventas
+  - name: partidasVenta
+    title: "Detalle de Ventas (Partidas)"
+    sql_table: canastos_tfx.tfx_table_partvta
     public: true
-    
-    description: |
-      ⚠️ ADVERTENCIA: Este cubo contiene cabeceros de documentos.
-      Un mismo folio puede tener múltiples registros (PE→FAC, PE→REM).
-      
-      DUPLICACIÓN IDENTIFICADA:
-      - 507 folios con múltiples tipos de documento
-      - 93.5% son PE + REM (Pedido → Remisión)
-      - 6.5% son FAC + PE (Factura + Pedido)
-      
-      RECOMENDACIÓN: Usar vista 'analiticaVentas' para análisis de ventas reales.
-      Si usa este cubo, aplicar segmentos para evitar duplicación.
 
     joins:
-      - name: clientes
+      - name: ventas
         relationship: many_to_one
-        sql: "{CUBE}.cliente = {clientes.codigoCliente} AND {CUBE}.sucursal = {clientes.sucursal}"
+        sql: "{CUBE}.venta = {ventas.numeroVenta} AND {CUBE}.sucursal = {ventas.sucursal}"
+      
+      # JOIN NUMÉRICO: Convertir SKU string con ceros ('001234') a integer (1234)
+      # Solo matchea productos NUMÉRICOS del catálogo
+      - name: catalogoProductos
+        relationship: many_to_one
+        sql: |
+          TRY_CAST({CUBE}.articulo AS BIGINT) IS NOT NULL
+          AND TRY_CAST({CUBE}.articulo AS BIGINT) = {catalogoProductos.skuInt}
 
     segments:
-      - name: ventasValidas
+      - name: partidasValidas
         sql: "{CUBE}.is_viable = true"
-        title: "Solo Ventas Viables"
-        description: "Filtra registros marcados como viables en el sistema"
-
-      # --- SEGMENTOS PARA PREVENIR DUPLICACIÓN ---
-      
-      - name: sinDuplicacionPedidos
-        sql: |
-          {CUBE}.tipo_doc NOT IN ('PE')
-          OR NOT EXISTS (
-            SELECT 1 FROM canastos_tfx.tfx_table_ventas v2
-            WHERE v2.venta = {CUBE}.venta 
-              AND v2.sucursal = {CUBE}.sucursal
-              AND v2.tipo_doc IN ('FAC', 'REM')
-          )
-        title: "🎯 Sin Duplicar Pedidos (RECOMENDADO)"
-        description: "Excluye PE cuando existe FAC o REM para el mismo folio. Previene duplicación automáticamente."
-
-      - name: soloDocumentosFiscales
-        sql: "{CUBE}.tipo_doc IN ('FAC', 'TIC', 'NC', 'DV')"
-        title: "Solo Documentos Fiscales"
-        description: "FAC, TIC, NC, DV - Excluye PE y REM que son documentos intermedios"
-
-      - name: soloFacturas
-        sql: "{CUBE}.tipo_doc = 'FAC'"
-        title: "Solo Facturas (FAC)"
-        description: "Filtra únicamente facturas fiscales"
-
-      - name: soloRemisiones
-        sql: "{CUBE}.tipo_doc = 'REM'"
-        title: "Solo Remisiones (REM)"
-        description: "Filtra únicamente remisiones"
-
-      - name: soloPedidos
-        sql: "{CUBE}.tipo_doc = 'PE'"
-        title: "Solo Pedidos (PE)"
-        description: "⚠️ Puede incluir pedidos que luego se facturaron/remisionaron"
-
-      - name: soloTickets
-        sql: "{CUBE}.tipo_doc = 'TIC'"
-        title: "Solo Tickets (TIC)"
-        description: "Tickets de venta directa"
+        title: "Solo Partidas Viables"
 
     dimensions:
       - name: id
-        sql: "{CUBE}.venta || '-' || {CUBE}.sucursal || '-' || {CUBE}.tipo_doc"
+        sql: "{CUBE}.venta || '-' || {CUBE}.articulo || '-' || {CUBE}.sucursal || '-' || CAST({CUBE}.partition_date AS VARCHAR)"
         type: string
         primary_key: true
-        title: "ID Venta Único"
-        description: "Incluye tipo de documento para permitir coexistencia de PE/FAC/REM con mismo folio"
+        title: "ID Partida"
 
-      - name: numeroVenta
+      - name: venta
         sql: "{CUBE}.venta"
         type: string
-        title: "Folio"
+        title: "Número Venta"
 
-      - name: cliente
-        sql: "{CUBE}.cliente"
+      - name: skuRaw
+        sql: "{CUBE}.articulo"
         type: string
-        title: "Código Cliente"
+        title: "SKU (Ticket)"
 
-      - name: tipoDocumento
-        sql: "{CUBE}.tipo_doc"
+      - name: descripcion
+        sql: "{CUBE}.observ"
         type: string
-        title: "Tipo Documento"
-        description: "PE=Pedido, FAC=Factura, REM=Remisión, TIC=Ticket, NC=Nota Crédito, DV=Devolución"
+        title: "Descripción (Ticket)"
 
-      - name: fechaTransaccion
+      - name: sucursal
+        sql: "{CUBE}.sucursal"
+        type: string
+        title: "Sucursal"
+
+      - name: fecha
         sql: "{CUBE}.partition_date"
         type: time
-        title: "Fecha Venta"
+        title: "Fecha"
 
       - name: anio
         sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
@@ -138,91 +97,68 @@ cubes:
         type: string
         title: "Día Semana"
 
-      - name: sucursal
-        sql: "{CUBE}.sucursal"
-        type: string
-        title: "Sucursal"
+      - name: is_viable
+        sql: "{CUBE}.is_viable"
+        type: boolean
+        title: "Es Viable"
+        public: false
 
-      - name: estado
-        sql: "{CUBE}.estado"
-        type: string
-        title: "Estado"
+      - name: precio
+        sql: "{CUBE}.precio"
+        type: number
+        title: "Precio Unitario"
+        public: false
+      
+      - name: cantidad_dim
+        sql: "{CUBE}.cantidad"
+        type: number
+        title: "Cantidad Unitario"
+        public: false
 
-      - name: tieneDuplicacionTipoDoc
+      - name: costo_unitario_calc
         sql: |
           CASE 
-            WHEN EXISTS (
-              SELECT 1 FROM canastos_tfx.tfx_table_ventas v2
-              WHERE v2.venta = {CUBE}.venta 
-                AND v2.sucursal = {CUBE}.sucursal
-                AND v2.tipo_doc != {CUBE}.tipo_doc
-            ) THEN 'Sí'
-            ELSE 'No'
+            WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
+            THEN {CUBE}.precio * 0.80
+            ELSE {CUBE}.costo
           END
-        type: string
-        title: "¿Tiene Múltiples Tipos Doc?"
-        description: "Indica si el folio tiene conversión de tipo (PE→FAC, PE→REM)"
+        type: number
+        public: false
 
     measures:
+      - name: costoAjustado
+        sql: |
+          CASE 
+            WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
+            THEN {CUBE}.precio * 0.80
+            ELSE {CUBE}.costo
+          END
+        type: sum
+        title: "Costo Unitario Ajustado"
+        
       - name: conteo
         type: count
-        title: "# Documentos"
-        description: "⚠️ Cuenta documentos. Un folio puede aparecer múltiples veces (PE+FAC, PE+REM)."
+        title: "# Líneas"
 
-      - name: conteoFoliosUnicos
-        sql: "{CUBE}.venta || '-' || {CUBE}.sucursal"
-        type: count_distinct
-        title: "# Folios Únicos"
-        description: "Cuenta folios sin duplicar por tipo de documento"
+      - name: cantidad
+        sql: "{CUBE}.cantidad"
+        type: sum
+        title: "Unidades"
 
-      - name: montoTotal
-        sql: "{CUBE}.importe"
+      - name: ingreso
+        sql: "{CUBE}.cantidad * {CUBE}.precio"
         type: sum
         format: currency
-        title: "Monto Total (⚠️ Puede Duplicar)"
-        description: |
-          ⚠️ PRECAUCIÓN: Suma todos los documentos sin filtrar.
-          Puede duplicar ventas si existen PE+FAC o PE+REM para el mismo folio.
-          
-          SOLUCIONES:
-          1. Usar medida 'Monto Sin Duplicar' (recomendado)
-          2. Aplicar segmento 'Sin Duplicar Pedidos'
-          3. Usar vista 'analiticaVentas' para datos exactos
+        title: "Venta Bruta"
 
-      - name: montoSinDuplicar
-        sql: |
-          CASE 
-            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV') THEN {CUBE}.importe
-            WHEN NOT EXISTS (
-              SELECT 1 FROM canastos_tfx.tfx_table_ventas v2
-              WHERE v2.venta = {CUBE}.venta 
-                AND v2.sucursal = {CUBE}.sucursal
-                AND v2.tipo_doc IN ('FAC', 'REM')
-            ) THEN {CUBE}.importe
-            ELSE 0
-          END
+      - name: costo
+        sql: "{CUBE}.cantidad * {costoAjustado}"
         type: sum
         format: currency
-        title: "✅ Monto Sin Duplicar (USAR ESTA)"
-        description: |
-          Calcula el monto correctamente evitando duplicación:
-          - Si es FAC, REM, TIC, NC o DV: cuenta el importe
-          - Si es PE sin FAC/REM asociado: cuenta el importe
-          - Si es PE con FAC/REM: NO cuenta (evita duplicar)
-          
-          Esta es la medida RECOMENDADA para reportes de ventas.
+        title: "Costo Total"
 
-      - name: conteoFoliosConDuplicacion
-        sql: |
-          CASE 
-            WHEN EXISTS (
-              SELECT 1 FROM canastos_tfx.tfx_table_ventas v2
-              WHERE v2.venta = {CUBE}.venta 
-                AND v2.sucursal = {CUBE}.sucursal
-                AND v2.tipo_doc != {CUBE}.tipo_doc
-            ) THEN {CUBE}.venta || '-' || {CUBE}.sucursal
-            ELSE NULL
-          END
-        type: count_distinct
-        title: "# Folios con Múltiples Tipos"
-        description: "Cuenta folios que tienen conversión de tipo documento (diagnóstico)"
+      - name: margen
+        sql: "({CUBE}.cantidad * {CUBE}.precio) - ({CUBE}.cantidad * {costoAjustado})"
+        type: sum
+        format: currency
+        title: "Utilidad"
