@@ -67,38 +67,38 @@ views:
         
      - name: impuestosTotales
         sql: "{partidasVenta.impuestoIVA16} + {partidasVenta.impuestoIEPS8}"
-        type: number
+        type: sum
         format: currency
         title: "Impuestos ($)"
         description: "Total de impuestos calculados (IVA + IEPS) sin duplicados."
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
       # --- NUEVAS MEDIDAS PARA DESGLOSE ---
-      - name: impuestoRealSinDuplicar
+    - name: impuestoRealSinDuplicar
         sql: "{ventas.impuestoSinDuplicar}"
         type: number
         format: currency
         title: "Impuestos Reales (Sin Duplicados)"
 
-      - name: iva16
+    - name: iva16
         sql: "{partidasVenta.impuestoIVA16}" 
         type: number
         format: currency
         title: "IVA 16%"
 
-      - name: ieps8
+    - name: ieps8
         sql: "{partidasVenta.impuestoIEPS8}" 
         type: number
         format: currency
         title: "IEPS 8%"
 
-      - name: cantidadVendida
+    - name: cantidadVendida
         sql: "{partidasVenta.cantidad_dim}"
         type: sum
         title: "Unidades Vendidas"
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
-      - name: conteoTickets
+    - name: conteoTickets
         sql: "{partidasVenta.venta}"
         type: count_distinct
         title: "# Tickets"
