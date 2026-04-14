@@ -93,19 +93,19 @@ cubes:
         title: "Ingreso Bruto"
 
       - name: impuestoIVA16
-        sql: "CASE WHEN {CUBE}.impuesto_value < 0 AND ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)) BETWEEN 0.14 AND 0.18 THEN ABS({CUBE}.impuesto_value) ELSE 0 END"
+        sql: "CASE WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.16 THEN {CUBE}.impuesto_value ELSE 0 END"
         type: sum
         format: currency
         title: "IVA 16%"
 
       - name: impuestoIEPS8
-        sql: "CASE WHEN {CUBE}.impuesto_value < 0 AND ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)) BETWEEN 0.06 AND 0.10 THEN ABS({CUBE}.impuesto_value) ELSE 0 END"
+        sql: "CASE WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.08 THEN {CUBE}.impuesto_value ELSE 0 END"
         type: sum
         format: currency
         title: "IEPS 8%"
 
       - name: totalImpuestosCalculados
-        sql: "ABS({CUBE}.impuesto_value)"
+        sql: "{CUBE}.impuesto_value"
         type: sum
         format: currency
         title: "Total Impuestos (Partidas)"
