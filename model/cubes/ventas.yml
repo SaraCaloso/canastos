@@ -169,13 +169,6 @@ cubes:
         title: "# Documentos"
         description: "⚠️ Cuenta documentos. Un folio puede aparecer múltiples veces (PE+FAC, PE+REM)."
         
-       - name: totalImpuesto
-        sql: "{CUBE}.impuesto"
-        type: sum
-        format: currency
-        title: "Impuesto total"
-        description: "Impuesto real según cabecero de venta. Usar con segmento sinDuplicacionPediddos."
-        
       - name: conteoFoliosUnicos
         sql: "{CUBE}.venta || '-' || {CUBE}.sucursal"
         type: count_distinct
@@ -233,3 +226,11 @@ cubes:
         type: count_distinct
         title: "# Folios con Múltiples Tipos"
         description: "Cuenta folios que tienen conversión de tipo documento (diagnóstico)"
+
+        measures:
+  - name: totalImpuesto
+    sql: "{CUBE}.impuesto"
+    type: sum
+    format: currency
+    title: "✅ Impuesto Total (desde Cabecero)"
+    description: "Impuesto real según cabecero de venta. Usar con segmento sinDuplicacionPedidos."
