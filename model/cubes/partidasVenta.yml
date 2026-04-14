@@ -9,8 +9,6 @@ cubes:
         relationship: many_to_one
         sql: "{CUBE}.venta = {ventas.numeroVenta} AND {CUBE}.sucursal = {ventas.sucursal}"
       
-      # JOIN NUMÉRICO: Convertir SKU string con ceros ('001234') a integer (1234)
-      # Solo matchea productos NUMÉRICOS del catálogo
       - name: catalogoProductos
         relationship: many_to_one
         sql: |
@@ -33,6 +31,11 @@ cubes:
         sql: "{CUBE}.venta"
         type: string
         title: "Número Venta"
+
+      - name: impuesto_value
+        sql: "{CUBE}.impuesto_value"
+        type: number
+        title: "Impuestos"
 
       - name: skuRaw
         sql: "{CUBE}.articulo"
@@ -135,7 +138,7 @@ cubes:
           END
         type: sum
         title: "Costo Unitario Ajustado"
-        
+   
       - name: conteo
         type: count
         title: "# Líneas"
@@ -162,3 +165,52 @@ cubes:
         type: sum
         format: currency
         title: "Utilidad"
+
+      - name: montoTotal
+        sql: "{CUBE}.cantidad * {CUBE}.precio"
+        type: sum
+        format: currency
+        title: "Monto Total"
+
+      # --- NUEVA LÓGICA DE IMPUESTOS ---
+      - name: baseIVA16
+        sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
+        type: sum
+        format: currency
+        title: "Base Gravable IVA 16%"
+
+      - name: impuestoIVA16
+        sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio * 0.16 ELSE 0 END"
+        type: sum
+        format: currency
+        title: "IVA 16%"
+
+      - name: baseIEPS8
+        sql: "CASE WHEN {CUBE}.impuesto_value = 8 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
+        type: sum
+        format: currency
+        title: "Base Gravable IEPS 8%"
+
+      - name: impuestoIEPS8
+        sql: "CASE WHEN {CUBE}.impuesto_value = 8 THEN {CUBE}.cantidad * {CUBE}.precio * 0.08 ELSE 0 END"
+        type: sum
+        format: currency
+        title: "IEPS 8%"
+
+      - name: baseIVA0
+        sql: "CASE WHEN {CUBE}.impuesto_value = 0 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
+        type: sum
+        format: currency
+        title: "Base Gravable IVA Tasa 0%"
+
+      - name: impuestoIVA0
+        sql: "0"
+        type: sum
+        format: currency
+        title: "IVA 0%"
+
+      - name: totalImpuestosCalculados
+        sql: "{impuestoIVA16} + {impuestoIEPS8}"
+        type: number
+        format: currency
+        title: "Total Impuestos (Partidas)"
