@@ -50,7 +50,7 @@ cubes:
         sql: "{CUBE}.precio"
         type: number
         title: "Precio Unitario"
-      
+
       - name: cantidad_dim
         sql: "{CUBE}.cantidad"
         type: number
@@ -91,7 +91,7 @@ cubes:
         type: sum
         format: currency
         title: "Ingreso Bruto"
-# --- DESGLOSE DE IMPUESTOS CORREGIDO ---
+
       - name: impuestoIVA16
         sql: "CASE WHEN {CUBE}.impuesto_value < 0 AND ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)) BETWEEN 0.14 AND 0.18 THEN ABS({CUBE}.impuesto_value) ELSE 0 END"
         type: sum
@@ -107,8 +107,5 @@ cubes:
       - name: totalImpuestosCalculados
         sql: "ABS({CUBE}.impuesto_value)"
         type: sum
-        format: currency
-        title: "Total Impuestos (Partidas)"
-        type: number
         format: currency
         title: "Total Impuestos (Partidas)"
