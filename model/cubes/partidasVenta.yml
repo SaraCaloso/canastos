@@ -104,19 +104,16 @@ cubes:
         sql: "{CUBE}.is_viable"
         type: boolean
         title: "Es Viable"
-        public: false
 
       - name: precio
         sql: "{CUBE}.precio"
         type: number
         title: "Precio Unitario"
-        public: false
       
       - name: cantidad_dim
         sql: "{CUBE}.cantidad"
         type: number
         title: "Cantidad Unitario"
-        public: false
 
       - name: costo_unitario_calc
         sql: |
@@ -126,7 +123,6 @@ cubes:
             ELSE {CUBE}.costo
           END
         type: number
-        public: false
 
     measures:
       - name: costoAjustado
@@ -172,42 +168,18 @@ cubes:
         format: currency
         title: "Monto Total"
 
-      # --- NUEVA LÓGICA DE IMPUESTOS ---
-      - name: baseIVA16
-        sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
-        type: sum
-        format: currency
-        title: "Base Gravable IVA 16%"
-
+      # --- DESGLOSE DE IMPUESTOS ---
       - name: impuestoIVA16
         sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio * 0.16 ELSE 0 END"
         type: sum
         format: currency
         title: "IVA 16%"
 
-      - name: baseIEPS8
-        sql: "CASE WHEN {CUBE}.impuesto_value = 8 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
-        type: sum
-        format: currency
-        title: "Base Gravable IEPS 8%"
-
       - name: impuestoIEPS8
         sql: "CASE WHEN {CUBE}.impuesto_value = 8 THEN {CUBE}.cantidad * {CUBE}.precio * 0.08 ELSE 0 END"
         type: sum
         format: currency
         title: "IEPS 8%"
-
-      - name: baseIVA0
-        sql: "CASE WHEN {CUBE}.impuesto_value = 0 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
-        type: sum
-        format: currency
-        title: "Base Gravable IVA Tasa 0%"
-
-      - name: impuestoIVA0
-        sql: "0"
-        type: sum
-        format: currency
-        title: "IVA 0%"
 
       - name: totalImpuestosCalculados
         sql: "{impuestoIVA16} + {impuestoIEPS8}"
