@@ -64,12 +64,14 @@ views:
         format: currency
         title: "Venta Bruta ($)"
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
-
+        
       - name: impuestosTotales
-        sql: "ROUND({partidasVenta.impuesto_value}, 2)"
-        type: sum
+        # Cambiamos la lógica para que sume las partidas calculadas automáticamente
+        sql: "{partidasVenta.impuestoIVA16} + {partidasVenta.impuestoIEPS8}"
+        type: number
         format: currency
         title: "Impuestos ($)"
+        description: "Total de impuestos calculados (IVA + IEPS) sin duplicados."
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
       # --- NUEVAS MEDIDAS PARA DESGLOSE ---
