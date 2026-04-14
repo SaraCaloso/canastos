@@ -227,9 +227,9 @@ cubes:
         title: "# Folios con Múltiples Tipos"
         description: "Cuenta folios que tienen conversión de tipo documento (diagnóstico)"
 
-  - name: totalImpuesto
-    sql: "{CUBE}.impuesto"
-    type: sum
-    format: currency
-    title: "✅ Impuesto Total (desde Cabecero)"
-    description: "Impuesto real según cabecero de venta. Usar con segmento sinDuplicacionPedidos."
+      - name: totalImpuesto
+        sql: "{CUBE}.impuesto"
+        type: sum
+        format: currency
+        title: "Impuesto Total (desde Cabecero)"
+        description: "Impuesto real según cabecero de venta. Usar con segmento sinDuplicacionPedidos."
