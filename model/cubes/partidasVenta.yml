@@ -167,23 +167,21 @@ cubes:
         type: sum
         format: currency
         title: "Utilidad"
-        
-  #Medidas desglosadas por tasa:
-
-      -name: baseIVA16
-       sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
-       type: sum
-       format: currency
-       title: "Base gravable IVA 16%"
+        # Medidas desglosadas por tasa:
+      - name: baseIVA16
+        sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
+        type: sum
+        format: currency
+        title: "Base Gravable IVA 16%"
 
       - name: impuestoIVA16
         sql: "CASE WHEN {CUBE}.impuesto_value = 16 THEN {CUBE}.cantidad * {CUBE}.precio * 0.16 ELSE 0 END"
         type: sum
         format: currency
         title: "IVA 16%"
-        
+
       - name: baseIEPS8
-        sql:  "CASE WHEN {CUBE}.impuesto_value = 8 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
+        sql: "CASE WHEN {CUBE}.impuesto_value = 8 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
         type: sum
         format: currency
         title: "Base Gravable IEPS 8%"
@@ -193,13 +191,9 @@ cubes:
         type: sum
         format: currency
         title: "IEPS 8%"
-        
-     - name: baseIVA0
-       sql: "CASE WHEN {CUBE}.impuesto_value = 0 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
-       type: sum
-       format: currency
-       title: "Base Gravable IVA Tasa 0%"
 
-        
-  
-  
+      - name: baseIVA0
+        sql: "CASE WHEN {CUBE}.impuesto_value = 0 THEN {CUBE}.cantidad * {CUBE}.precio ELSE 0 END"
+        type: sum
+        format: currency
+        title: "Base Gravable IVA Tasa 0%"
