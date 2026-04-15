@@ -61,7 +61,7 @@ views:
 
     measures:
       - name: ventaNeta
-        sql: "{partidasVenta.ventaBruta}"
+        sql: "{partidasVenta.ingresoTotalViable}"
         type: number
         format: currency
         title: "Venta Neta"
@@ -82,7 +82,7 @@ views:
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
       - name: ventaTotal
-        sql: "{partidasVenta.ventaBruta} + {partidasVenta.impuestosTotales}"
+        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.impuestosTotales}"
         type: number
         format: currency
         title: "Venta Total (Final)"
