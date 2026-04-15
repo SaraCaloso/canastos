@@ -7,7 +7,22 @@ cubes:
     joins:
       - name: ventas
         relationship: many_to_one
-        sql: "{CUBE}.venta = {ventas.numeroVenta} AND {CUBE}.sucursal = {ventas.sucursal}"
+        # Priorizamos un solo documento para evitar duplicados
+        sql: |
+          {CUBE}.venta = {ventas.numeroVenta} 
+          AND {CUBE}.sucursal = {ventas.sucursal}
+          AND {ventas.tipoDocumento} = (
+            SELECT v2.tipo_doc 
+            FROM canastos_tfx.tfx_table_ventas v2
+            WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
+            ORDER BY 
+              CASE v2.tipo_doc 
+                WHEN 'FAC' THEN 1 
+                WHEN 'TIC' THEN 2 
+                WHEN 'REM' THEN 3 
+                ELSE 4 END 
+            LIMIT 1
+          )
 
     dimensions:
       - name: id
@@ -75,8 +90,15 @@ cubes:
         type: number
         title: "Mes (Num)"
 
+      # Agregamos el nombre de todos los meses
       - name: nombreMes
-        sql: "CASE WHEN EXTRACT(MONTH FROM {CUBE}.partition_date) = 1 THEN 'January' ELSE 'Other' END"
+        sql: |
+          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
+            WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
+            WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
+            WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
+          END
         type: string
         title: "Mes"
 
@@ -92,20 +114,31 @@ cubes:
         format: currency
         title: "Ingreso Bruto"
 
+      # Multiplicar impuesto unitario por cantidad / Más legible
       - name: impuestoIVA16
-        sql: "CASE WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.16 THEN {CUBE}.impuesto_value ELSE 0 END"
+        sql: |
+          CASE 
+            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.16 
+            THEN ({CUBE}.impuesto_value * {CUBE}.cantidad) 
+            ELSE 0 
+          END
         type: sum
         format: currency
         title: "IVA 16%"
 
       - name: impuestoIEPS8
-        sql: "CASE WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.08 THEN {CUBE}.impuesto_value ELSE 0 END"
+        sql: |
+          CASE 
+            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.08 
+            THEN ({CUBE}.impuesto_value * {CUBE}.cantidad) 
+            ELSE 0 
+          END
         type: sum
         format: currency
         title: "IEPS 8%"
 
       - name: totalImpuestosCalculados
-        sql: "{CUBE}.impuesto_value"
+        sql: "{CUBE}.impuesto_value * {CUBE}.cantidad"
         type: sum
         format: currency
-        title: "Total Impuestos (Partidas)"
+        title: "Total Impuestos"
