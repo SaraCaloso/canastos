@@ -82,7 +82,7 @@ views:
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
       - name: ventaTotal
-        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.impuestosTotales}"
+        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
         type: number
         format: currency
         title: "Venta Total (Final)"
