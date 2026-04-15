@@ -20,6 +20,9 @@ views:
           - impuestoIVA16
           - impuestoIEPS8
           - totalImpuestosCalculados
+          # Medidas ya filtradas (is_viable = true) en el cubo
+          - name: ingresoTotalViable
+            alias: ventaBruta
 
       - join_path: partidasVenta.ventas
         includes:
@@ -93,14 +96,6 @@ views:
         title: "IEPS 8%"
         filters: [{ sql: [{column: partidasVenta.is_viable, operator: equals, values: ["true"]}] }] # Versión alternativa de sintaxis
 
-      # Nueva medida agregada
-      - name: ventaNetaFinal
-        sql: "{ingresoTotal} - {impuestosTotales}"
-        type: number
-        format: currency
-        title: "Venta Neta (Sin Impuestos)"
-        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
-
       - name: cantidadVendida
         sql: "{partidasVenta.cantidad_dim}"
         type: sum
@@ -112,3 +107,16 @@ views:
         type: count_distinct
         title: "# Tickets"
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+
+      # Nuevas medidas agregadas
+      - name: ventaTotalConImpuestos
+        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.impuestosTotales}"
+        type: number
+        format: currency
+        title: "Venta Total (Final)"
+
+      - name: ventaNeta
+        sql: "{partidasVenta.ingresoTotalViable} - {partidasVenta.impuestosTotales}"
+        type: number
+        format: currency
+        title: "Venta Neta"

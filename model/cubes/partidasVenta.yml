@@ -142,3 +142,10 @@ cubes:
         type: sum
         format: currency
         title: "Total Impuestos"
+
+      - name: conteoTickets
+        sql: "{CUBE}.venta"
+        type: count_distinct
+        title: "# Tickets"
+        filters:
+          - sql: "{CUBE}.is_viable = true"
