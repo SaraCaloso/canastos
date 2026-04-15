@@ -7,6 +7,7 @@ cubes:
     joins:
       - name: ventas
         relationship: many_to_one
+        # Esta lógica selecciona un solo documento por venta (FAC > TIC > REM) para evitar duplicados
         sql: |
           {CUBE}.venta = {ventas.numeroVenta} 
           AND {CUBE}.sucursal = {ventas.sucursal}
@@ -97,13 +98,40 @@ cubes:
           END
         type: number
 
+      # Dimensiones de tiempo requeridas para la View y evitar errores de compilación
+      - name: anio
+        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
+        type: number
+        title: "Año"
+
+      - name: numMes
+        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
+        type: number
+        title: "Mes (Num)"
+
+      - name: nombreMes
+        sql: |
+          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
+            WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
+            WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
+            WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
+          END
+        type: string
+        title: "Mes"
+
+      - name: diaSemana
+        sql: "EXTRACT(DOW FROM {CUBE}.partition_date)"
+        type: number
+        title: "Día Semana"
+
     measures:
       - name: ingresoTotalViable
         sql: "{CUBE}.cantidad * {CUBE}.precio"
         type: sum
         format: currency
         title: "Ingreso Bruto"
-        filters: 
+        filters:
           - sql: "{CUBE}.is_viable = true"
           - segment: soloVentaOficial
 
@@ -117,7 +145,7 @@ cubes:
         type: sum
         format: currency
         title: "IVA 16%"
-        filters: 
+        filters:
           - sql: "{CUBE}.is_viable = true"
           - segment: soloVentaOficial
 
@@ -131,7 +159,7 @@ cubes:
         type: sum
         format: currency
         title: "IEPS 8%"
-        filters: 
+        filters:
           - sql: "{CUBE}.is_viable = true"
           - segment: soloVentaOficial
 
@@ -140,7 +168,7 @@ cubes:
         type: sum
         format: currency
         title: "Total Impuestos"
-        filters: 
+        filters:
           - sql: "{CUBE}.is_viable = true"
           - segment: soloVentaOficial
 
@@ -148,6 +176,6 @@ cubes:
         sql: "{CUBE}.venta"
         type: count_distinct
         title: "# Tickets"
-        filters: 
+        filters:
           - sql: "{CUBE}.is_viable = true"
           - segment: soloVentaOficial
