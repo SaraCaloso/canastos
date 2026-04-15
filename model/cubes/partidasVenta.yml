@@ -7,7 +7,7 @@ cubes:
     joins:
       - name: ventas
         relationship: many_to_one
-        # Priorizamos un solo documento para evitar duplicados
+        # Esta lógica selecciona un solo documento por venta (FAC > TIC > REM) para evitar duplicados
         sql: |
           {CUBE}.venta = {ventas.numeroVenta} 
           AND {CUBE}.sucursal = {ventas.sucursal}
@@ -113,39 +113,43 @@ cubes:
         type: sum
         format: currency
         title: "Ingreso Bruto"
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       # Multiplicar impuesto unitario por cantidad / Más legible
       - name: impuestoIVA16
         sql: |
           CASE 
-            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.16 
-            THEN ({CUBE}.impuesto_value * {CUBE}.cantidad) 
+            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio * {CUBE}.cantidad, 0)), 2) = 0.16 
+            THEN {CUBE}.impuesto_value 
             ELSE 0 
           END
         type: sum
         format: currency
         title: "IVA 16%"
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIEPS8
         sql: |
           CASE 
-            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.08 
-            THEN ({CUBE}.impuesto_value * {CUBE}.cantidad) 
+            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio * {CUBE}.cantidad, 0)), 2) = 0.08 
+            THEN {CUBE}.impuesto_value 
             ELSE 0 
           END
         type: sum
         format: currency
         title: "IEPS 8%"
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: totalImpuestosCalculados
-        sql: "{CUBE}.impuesto_value * {CUBE}.cantidad"
+        # Eliminada la multiplicación por cantidad; impuesto_value ya es el total de la partida
+        sql: "{CUBE}.impuesto_value"
         type: sum
         format: currency
         title: "Total Impuestos"
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: conteoTickets
         sql: "{CUBE}.venta"
         type: count_distinct
         title: "# Tickets"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
+        filters: [{ sql: "{CUBE}.is_viable = true" }]

@@ -17,12 +17,10 @@ views:
           - numMes
           - nombreMes
           - diaSemana
+          - totalImpuestosCalculados
+          - ingresoTotal
           - impuestoIVA16
           - impuestoIEPS8
-          - totalImpuestosCalculados
-          # Medidas ya filtradas (is_viable = true) en el cubo
-          - name: ingresoTotalViable
-            alias: ventaBruta
 
       - join_path: partidasVenta.ventas
         includes:
@@ -61,12 +59,11 @@ views:
         title: "Folio Ticket"
 
     measures:
-      - name: ingresoTotal
-        sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
+      - name: ventaNeta
+        sql: "{partidasVenta.ingresoTotal}"
         type: number
         format: currency
-        title: "Venta Bruta ($)"
-        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+        title: "Venta Neta"
 
       - name: impuestosTotales
         sql: "{partidasVenta.totalImpuestosCalculados}"
@@ -75,6 +72,19 @@ views:
         title: "Impuestos ($)"
         description: "Total de impuestos calculados (IVA + IEPS) sin duplicados."
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+
+      - name: ingresoTotal
+        sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
+        type: number
+        format: currency
+        title: "Venta Bruta ($)"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+
+      - name: ventaTotal
+        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.impuestosTotales}"
+        type: number
+        format: currency
+        title: "Venta Total (Final)"
 
       - name: impuestoRealSinDuplicar
         sql: "{ventas.impuestoSinDuplicar}"
@@ -102,21 +112,9 @@ views:
         title: "Unidades Vendidas"
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
-      - name: conteoTickets
-        sql: "{partidasVenta.venta}"
-        type: count_distinct
-        title: "# Tickets"
-        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+      # - name: conteoTickets
+      #   sql: "{partidasVenta.venta}"
+      #   type: count_distinct
+      #   title: "# Tickets"
+      #   filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
-      # Nuevas medidas agregadas
-      - name: ventaTotalConImpuestos
-        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.impuestosTotales}"
-        type: number
-        format: currency
-        title: "Venta Total (Final)"
-
-      - name: ventaNeta
-        sql: "{partidasVenta.ingresoTotalViable} - {partidasVenta.impuestosTotales}"
-        type: number
-        format: currency
-        title: "Venta Neta"
