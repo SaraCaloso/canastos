@@ -17,7 +17,8 @@ views:
           - numMes
           - nombreMes
           - diaSemana
-          - ingresoTotalViable
+          - name: ingresoTotalViable
+            alias: ventaNeta
           - totalImpuestosCalculados
           - impuestoIVA16
           - impuestoIEPS8
@@ -60,7 +61,7 @@ views:
 
     measures:
       - name: ventaNeta
-        sql: "{partidasVenta.ingresoTotalViable}"
+        sql: "{partidasVenta.ventaNeta}"
         type: number
         format: currency
         title: "Venta Neta"
