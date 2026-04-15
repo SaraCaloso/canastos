@@ -24,24 +24,6 @@ cubes:
             LIMIT 1
           )
 
-    segments:
-      - name: soloVentaOficial
-        public: true
-        description: "Filtra para obtener solo el documento principal y evitar duplicidad de impuestos."
-        sql: |
-          {CUBE}.tipo_doc = (
-            SELECT v2.tipo_doc 
-            FROM canastos_tfx.tfx_table_ventas v2
-            WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
-            ORDER BY 
-              CASE v2.tipo_doc 
-                WHEN 'FAC' THEN 1 
-                WHEN 'TIC' THEN 2 
-                WHEN 'REM' THEN 3 
-                ELSE 4 END 
-            LIMIT 1
-          )
-
     dimensions:
       - name: id
         sql: "{CUBE}.venta || '-' || {CUBE}.articulo || '-' || {CUBE}.sucursal || '-' || CAST({CUBE}.partition_date AS VARCHAR)"
@@ -57,7 +39,7 @@ cubes:
       - name: impuesto_value
         sql: "{CUBE}.impuesto_value"
         type: number
-        title: "Impuesto Unitario ($)"
+        title: "Tasa Impuesto"
 
       - name: skuRaw
         sql: "{CUBE}.articulo"
@@ -98,7 +80,6 @@ cubes:
           END
         type: number
 
-      # Dimensiones de tiempo requeridas para la View y evitar errores de compilación
       - name: anio
         sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
         type: number
@@ -109,6 +90,7 @@ cubes:
         type: number
         title: "Mes (Num)"
 
+      # Agregamos el nombre de todos los meses
       - name: nombreMes
         sql: |
           CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
@@ -131,51 +113,43 @@ cubes:
         type: sum
         format: currency
         title: "Ingreso Bruto"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - segment: soloVentaOficial
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
 
+      # Multiplicar impuesto unitario por cantidad / Más legible
       - name: impuestoIVA16
         sql: |
           CASE 
-            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.16 
-            THEN {CUBE}.impuesto_value * {CUBE}.cantidad
+            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio * {CUBE}.cantidad, 0)), 2) = 0.16 
+            THEN {CUBE}.impuesto_value 
             ELSE 0 
           END
         type: sum
         format: currency
         title: "IVA 16%"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - segment: soloVentaOficial
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIEPS8
         sql: |
           CASE 
-            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.08 
-            THEN {CUBE}.impuesto_value * {CUBE}.cantidad
+            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio * {CUBE}.cantidad, 0)), 2) = 0.08 
+            THEN {CUBE}.impuesto_value 
             ELSE 0 
           END
         type: sum
         format: currency
         title: "IEPS 8%"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - segment: soloVentaOficial
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: totalImpuestosCalculados
-        sql: "{CUBE}.impuesto_value * {CUBE}.cantidad"
+        # Eliminada la multiplicación por cantidad; impuesto_value ya es el total de la partida
+        sql: "{CUBE}.impuesto_value"
         type: sum
         format: currency
         title: "Total Impuestos"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - segment: soloVentaOficial
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: conteoTickets
         sql: "{CUBE}.venta"
         type: count_distinct
         title: "# Tickets"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - segment: soloVentaOficial
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
