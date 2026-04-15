@@ -7,11 +7,28 @@ cubes:
     joins:
       - name: ventas
         relationship: many_to_one
-        # Esta lógica selecciona un solo documento por venta (FAC > TIC > REM) para evitar duplicados
         sql: |
           {CUBE}.venta = {ventas.numeroVenta} 
           AND {CUBE}.sucursal = {ventas.sucursal}
           AND {ventas.tipoDocumento} = (
+            SELECT v2.tipo_doc 
+            FROM canastos_tfx.tfx_table_ventas v2
+            WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
+            ORDER BY 
+              CASE v2.tipo_doc 
+                WHEN 'FAC' THEN 1 
+                WHEN 'TIC' THEN 2 
+                WHEN 'REM' THEN 3 
+                ELSE 4 END 
+            LIMIT 1
+          )
+
+    segments:
+      - name: soloVentaOficial
+        public: true
+        description: "Filtra para obtener solo el documento principal y evitar duplicidad de impuestos."
+        sql: |
+          {CUBE}.tipo_doc = (
             SELECT v2.tipo_doc 
             FROM canastos_tfx.tfx_table_ventas v2
             WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
@@ -39,7 +56,6 @@ cubes:
       - name: impuesto_value
         sql: "{CUBE}.impuesto_value"
         type: number
-        # impuesto_value = precio * tasa (monto unitario, NO la tasa en sí)
         title: "Impuesto Unitario ($)"
 
       - name: skuRaw
@@ -81,43 +97,16 @@ cubes:
           END
         type: number
 
-      - name: anio
-        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
-        type: number
-        title: "Año"
-
-      - name: numMes
-        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
-        type: number
-        title: "Mes (Num)"
-
-      - name: nombreMes
-        sql: |
-          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
-            WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
-            WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
-            WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
-          END
-        type: string
-        title: "Mes"
-
-      - name: diaSemana
-        sql: "EXTRACT(DOW FROM {CUBE}.partition_date)"
-        type: number
-        title: "Día Semana"
-
     measures:
       - name: ingresoTotalViable
         sql: "{CUBE}.cantidad * {CUBE}.precio"
         type: sum
         format: currency
         title: "Ingreso Bruto"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        filters: 
+          - sql: "{CUBE}.is_viable = true"
+          - segment: soloVentaOficial
 
-      # CORRECCIÓN: impuesto_value es el monto por UNIDAD (precio * tasa).
-      # Para obtener el impuesto total de la partida se debe multiplicar por cantidad.
-      # La detección de tasa se hace dividiendo impuesto_value / precio (unitario vs unitario).
       - name: impuestoIVA16
         sql: |
           CASE 
@@ -128,7 +117,9 @@ cubes:
         type: sum
         format: currency
         title: "IVA 16%"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        filters: 
+          - sql: "{CUBE}.is_viable = true"
+          - segment: soloVentaOficial
 
       - name: impuestoIEPS8
         sql: |
@@ -140,18 +131,23 @@ cubes:
         type: sum
         format: currency
         title: "IEPS 8%"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        filters: 
+          - sql: "{CUBE}.is_viable = true"
+          - segment: soloVentaOficial
 
-      # CORRECCIÓN: se agrega * cantidad porque impuesto_value es monto unitario, no total de partida.
       - name: totalImpuestosCalculados
         sql: "{CUBE}.impuesto_value * {CUBE}.cantidad"
         type: sum
         format: currency
         title: "Total Impuestos"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        filters: 
+          - sql: "{CUBE}.is_viable = true"
+          - segment: soloVentaOficial
 
       - name: conteoTickets
         sql: "{CUBE}.venta"
         type: count_distinct
         title: "# Tickets"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        filters: 
+          - sql: "{CUBE}.is_viable = true"
+          - segment: soloVentaOficial
