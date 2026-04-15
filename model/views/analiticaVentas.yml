@@ -17,8 +17,8 @@ views:
           - numMes
           - nombreMes
           - diaSemana
+          - ingresoTotalViable
           - totalImpuestosCalculados
-          - ingresoTotal
           - impuestoIVA16
           - impuestoIEPS8
 
@@ -60,7 +60,7 @@ views:
 
     measures:
       - name: ventaNeta
-        sql: "{partidasVenta.ingresoTotal}"
+        sql: "{partidasVenta.ingresoTotalViable}"
         type: number
         format: currency
         title: "Venta Neta"
@@ -73,7 +73,7 @@ views:
         description: "Total de impuestos calculados (IVA + IEPS) sin duplicados."
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
-      - name: ingresoTotal
+      - name: ingresoTotalViable
         sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
         type: number
         format: currency
@@ -81,7 +81,7 @@ views:
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
       - name: ventaTotal
-        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.impuestosTotales}"
+        sql: "{partidasVenta.ingresoTotalViableViable} + {partidasVenta.impuestosTotales}"
         type: number
         format: currency
         title: "Venta Total (Final)"

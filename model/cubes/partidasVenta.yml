@@ -108,7 +108,7 @@ cubes:
         title: "Día Semana"
 
     measures:
-      - name: ingresoTotal
+      - name: ingresoTotalViable
         sql: "{CUBE}.cantidad * {CUBE}.precio"
         type: sum
         format: currency
