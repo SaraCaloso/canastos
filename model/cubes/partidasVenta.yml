@@ -39,7 +39,8 @@ cubes:
       - name: impuesto_value
         sql: "{CUBE}.impuesto_value"
         type: number
-        title: "Tasa Impuesto"
+        # impuesto_value = precio * tasa (monto unitario, NO la tasa en sí)
+        title: "Impuesto Unitario ($)"
 
       - name: skuRaw
         sql: "{CUBE}.articulo"
@@ -90,7 +91,6 @@ cubes:
         type: number
         title: "Mes (Num)"
 
-      # Agregamos el nombre de todos los meses
       - name: nombreMes
         sql: |
           CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
@@ -115,12 +115,14 @@ cubes:
         title: "Ingreso Bruto"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      # Multiplicar impuesto unitario por cantidad / Más legible
+      # CORRECCIÓN: impuesto_value es el monto por UNIDAD (precio * tasa).
+      # Para obtener el impuesto total de la partida se debe multiplicar por cantidad.
+      # La detección de tasa se hace dividiendo impuesto_value / precio (unitario vs unitario).
       - name: impuestoIVA16
         sql: |
           CASE 
-            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio * {CUBE}.cantidad, 0)), 2) = 0.16 
-            THEN {CUBE}.impuesto_value 
+            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.16 
+            THEN {CUBE}.impuesto_value * {CUBE}.cantidad
             ELSE 0 
           END
         type: sum
@@ -131,8 +133,8 @@ cubes:
       - name: impuestoIEPS8
         sql: |
           CASE 
-            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio * {CUBE}.cantidad, 0)), 2) = 0.08 
-            THEN {CUBE}.impuesto_value 
+            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio, 0)), 2) = 0.08 
+            THEN {CUBE}.impuesto_value * {CUBE}.cantidad
             ELSE 0 
           END
         type: sum
@@ -140,9 +142,9 @@ cubes:
         title: "IEPS 8%"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
+      # CORRECCIÓN: se agrega * cantidad porque impuesto_value es monto unitario, no total de partida.
       - name: totalImpuestosCalculados
-        # Eliminada la multiplicación por cantidad; impuesto_value ya es el total de la partida
-        sql: "{CUBE}.impuesto_value"
+        sql: "{CUBE}.impuesto_value * {CUBE}.cantidad"
         type: sum
         format: currency
         title: "Total Impuestos"
