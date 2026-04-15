@@ -113,9 +113,9 @@ views:
         title: "Unidades Vendidas"
         filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
-      # - name: conteoTickets
-      #   sql: "{partidasVenta.venta}"
-      #   type: count_distinct
-      #   title: "# Tickets"
-      #   filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+      - name: conteoTickets
+        sql: "{partidasVenta.venta}"
+        type: count_distinct
+        title: "# Tickets"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
