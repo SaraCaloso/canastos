@@ -19,14 +19,8 @@ cubes:
         title: "Solo Ventas Viables"
 
       - name: sinDuplicacionPedidos
-        sql: |
-          {CUBE}.tipo_doc NOT IN ('PE')
-          OR NOT EXISTS (
-            SELECT 1 FROM canastos_tfx.tfx_table_ventas v2
-            WHERE v2.venta = {CUBE}.venta 
-              AND v2.sucursal = {CUBE}.sucursal
-              AND v2.tipo_doc IN ('FAC', 'REM')
-          )
+        # Simplificado para evitar error de 'outer scope'
+        sql: "{CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE')"
         title: "🎯 Sin Duplicar Pedidos"
 
     dimensions:
@@ -50,7 +44,8 @@ cubes:
         sql: "{CUBE}.sucursal"
         type: string
         title: "Sucursal"
-      - name: tipoDocumento # <--- ESTO ES LO QUE PRESET BUSCA
+
+      - name: tipoDocumento
         sql: "{CUBE}.tipo_doc"
         type: string
         title: "Tipo de Documento"
@@ -95,11 +90,11 @@ cubes:
         type: sum
         format: currency
         title: "Monto Bruto Cabecero"
+
       - name: montoSinDuplicar
         sql: |
           CASE 
-            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV') THEN {CUBE}.importe
-            WHEN {CUBE}.tipo_doc = 'PE' THEN {CUBE}.importe
+            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE') THEN {CUBE}.importe
             ELSE 0 
           END
         type: sum
@@ -109,8 +104,7 @@ cubes:
       - name: impuestoSinDuplicar
         sql: |
           CASE 
-            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV') THEN {CUBE}.impuesto
-            WHEN {CUBE}.tipo_doc = 'PE' THEN {CUBE}.impuesto
+            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE') THEN {CUBE}.impuesto
             ELSE 0 
           END
         type: sum
