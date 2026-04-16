@@ -22,6 +22,7 @@ views:
           - totalImpuestosCalculados
           - impuestoIVA16
           - impuestoIEPS8
+          - descuentoTotal
 
       - join_path: partidasVenta.ventas
         includes:
