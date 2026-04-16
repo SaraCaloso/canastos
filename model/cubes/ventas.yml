@@ -50,6 +50,10 @@ cubes:
         sql: "{CUBE}.sucursal"
         type: string
         title: "Sucursal"
+      - name: tipoDocumento # <--- ESTO ES LO QUE PRESET BUSCA
+        sql: "{CUBE}.tipo_doc"
+        type: string
+        title: "Tipo de Documento"
 
       - name: fechaTransaccion
         sql: "{CUBE}.partition_date"
