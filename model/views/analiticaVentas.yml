@@ -30,6 +30,7 @@ views:
           - montoSinDuplicar
           - impuestoSinDuplicar
           - cliente
+          - tipoDocumento
 
       - join_path: catalogoProductos
         includes:
