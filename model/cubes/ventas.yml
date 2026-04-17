@@ -68,21 +68,40 @@ cubes:
       - name: nombreMes
         sql: |
           CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1 THEN 'January'
-            WHEN 2 THEN 'February'
-            WHEN 3 THEN 'March'
-            WHEN 4 THEN 'April'
-            WHEN 5 THEN 'May'
-            WHEN 6 THEN 'June'
-            WHEN 7 THEN 'July'
-            WHEN 8 THEN 'August'
-            WHEN 9 THEN 'September'
-            WHEN 10 THEN 'October'
-            WHEN 11 THEN 'November'
-            WHEN 12 THEN 'December'
+            WHEN 1 THEN 'Enero'
+            WHEN 2 THEN 'Febrero'
+            WHEN 3 THEN 'Marzo'
+            WHEN 4 THEN 'Abril'
+            WHEN 5 THEN 'Mayo'
+            WHEN 6 THEN 'Junio'
+            WHEN 7 THEN 'Julio'
+            WHEN 8 THEN 'Agosto'
+            WHEN 9 THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre'
+            WHEN 11 THEN 'Noviembre'
+            WHEN 12 THEN 'Diciembre'
           END
         type: string
         title: "Mes"
+
+      - name: documentoPrincipal
+        # Esta dimensión resuelve el error de DuckDB al pre-calcular 
+        # el tipo de documento ganador por venta/sucursal.
+        type: string
+        public: false
+        sql: |
+          (
+            SELECT v2.tipo_doc 
+            FROM canastos_tfx.tfx_table_ventas v2
+            WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
+            ORDER BY 
+              CASE v2.tipo_doc 
+                WHEN 'FAC' THEN 1 
+                WHEN 'TIC' THEN 2 
+                WHEN 'REM' THEN 3 
+                ELSE 4 END 
+            LIMIT 1
+          )
 
     measures:
       - name: montoTotal
