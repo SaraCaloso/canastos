@@ -7,22 +7,12 @@ cubes:
     joins:
       - name: ventas
         relationship: many_to_one
-        # Esta lógica selecciona un solo documento por venta (FAC > TIC > REM) para evitar duplicados
+        # CORRECCIÓN: join simplificado — la deduplicación FAC > TIC > PE > REM
+        # ahora vive dentro del cubo ventas (via ROW_NUMBER en su sql).
+        # Ya no se necesita subconsulta correlacionada aquí.
         sql: |
-          {CUBE}.venta = {ventas.numeroVenta} 
+          {CUBE}.venta = {ventas.numeroVenta}
           AND {CUBE}.sucursal = {ventas.sucursal}
-          AND {ventas.tipoDocumento} = (
-            SELECT v2.tipo_doc 
-            FROM canastos_tfx.tfx_table_ventas v2
-            WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
-            ORDER BY 
-              CASE v2.tipo_doc 
-                WHEN 'FAC' THEN 1 
-                WHEN 'TIC' THEN 2 
-                WHEN 'REM' THEN 3 
-                ELSE 4 END 
-            LIMIT 1
-          )
 
     dimensions:
       - name: id
@@ -90,14 +80,13 @@ cubes:
         type: number
         title: "Mes (Num)"
 
-      # Agregamos el nombre de todos los meses
       - name: nombreMes
         sql: |
           CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
-            WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
-            WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
-            WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
+            WHEN 1  THEN 'Enero'      WHEN 2  THEN 'Febrero'    WHEN 3  THEN 'Marzo'
+            WHEN 4  THEN 'Abril'      WHEN 5  THEN 'Mayo'       WHEN 6  THEN 'Junio'
+            WHEN 7  THEN 'Julio'      WHEN 8  THEN 'Agosto'     WHEN 9  THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre'    WHEN 11 THEN 'Noviembre'  WHEN 12 THEN 'Diciembre'
           END
         type: string
         title: "Mes"
@@ -127,11 +116,9 @@ cubes:
         title: "Ingreso Bruto"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      # Multiplicar impuesto unitario por cantidad / Más legible
       - name: impuestoIVA16
         sql: |
           CASE 
-            # Calculamos la tasa sobre la base YA con descuento
             WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF(({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0), 0)), 2) = 0.16 
             THEN {CUBE}.impuesto_value 
             ELSE 0 
@@ -166,7 +153,6 @@ cubes:
         title: "# Tickets"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      # CORRECCIÓN: medida necesaria para que analiticaVentas pueda sumar cantidad
       - name: cantidadVendida
         sql: "{CUBE}.cantidad"
         type: sum
