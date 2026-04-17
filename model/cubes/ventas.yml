@@ -5,30 +5,19 @@ cubes:
     public: true
     
     description: |
-      ⚠️ ADVERTENCIA: Este cubo contiene cabeceros de documentos.
-      Un mismo folio puede tener múltiples registros (PE→FAC, PE→REM).
+      Este cubo contiene los cabeceros de documentos originales.
+      La deduplicación se gestiona mediante medidas específicas.
 
     joins:
       - name: clientes
         relationship: many_to_one
         sql: "{CUBE}.cliente = {clientes.codigoCliente} AND {CUBE}.sucursal = {clientes.sucursal}"
 
-    segments:
-      - name: ventasValidas
-        sql: "{CUBE}.is_viable = true"
-        title: "Solo Ventas Viables"
-
-      - name: sinDuplicacionPedidos
-        # Simplificado para evitar error de 'outer scope'
-        sql: "{CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE')"
-        title: "🎯 Sin Duplicar Pedidos"
-
     dimensions:
       - name: id
         sql: "{CUBE}.venta || '-' || {CUBE}.sucursal || '-' || {CUBE}.tipo_doc"
         type: string
         primary_key: true
-        title: "ID Venta Único"
 
       - name: numeroVenta
         sql: "{CUBE}.venta"
@@ -55,61 +44,7 @@ cubes:
         type: time
         title: "Fecha Venta"
 
-      - name: anio
-        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
-        type: number
-        title: "Año"
-
-      - name: numMes
-        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
-        type: number
-        title: "Mes (Num)"
-
-      - name: nombreMes
-        sql: |
-          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1 THEN 'Enero'
-            WHEN 2 THEN 'Febrero'
-            WHEN 3 THEN 'Marzo'
-            WHEN 4 THEN 'Abril'
-            WHEN 5 THEN 'Mayo'
-            WHEN 6 THEN 'Junio'
-            WHEN 7 THEN 'Julio'
-            WHEN 8 THEN 'Agosto'
-            WHEN 9 THEN 'Septiembre'
-            WHEN 10 THEN 'Octubre'
-            WHEN 11 THEN 'Noviembre'
-            WHEN 12 THEN 'Diciembre'
-          END
-        type: string
-        title: "Mes"
-
-      - name: documentoPrincipal
-        # Esta dimensión resuelve el error de DuckDB al pre-calcular 
-        # el tipo de documento ganador por venta/sucursal.
-        type: string
-        public: false
-        sql: |
-          (
-            SELECT v2.tipo_doc 
-            FROM canastos_tfx.tfx_table_ventas v2
-            WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
-            ORDER BY 
-              CASE v2.tipo_doc 
-                WHEN 'FAC' THEN 1 
-                WHEN 'TIC' THEN 2 
-                WHEN 'REM' THEN 3 
-                ELSE 4 END 
-            LIMIT 1
-          )
-
     measures:
-      - name: montoTotal
-        sql: "{CUBE}.importe"
-        type: sum
-        format: currency
-        title: "Monto Bruto Cabecero"
-
       - name: montoSinDuplicar
         sql: |
           CASE 
@@ -129,9 +64,3 @@ cubes:
         type: sum
         format: currency
         title: "✅ Impuesto Total Sin Duplicar"
-
-      - name: totalImpuesto
-        sql: "{CUBE}.impuesto"
-        type: sum
-        format: currency
-        title: "Impuesto Total (Bruto)"
