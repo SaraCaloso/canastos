@@ -23,8 +23,8 @@ views:
           - impuestoIVA16
           - impuestoIEPS8
           - descuentoTotal
-          - cantidad # Agregada porque la Vista lo pide abajo
-          - conteoTickets # Agregada porque la Vista lo pide abajo
+          # CORRECCIÓN: se incluye la medida cantidadVendida definida en partidasVenta
+          - cantidadVendida
 
       - join_path: partidasVenta.ventas
         includes:
@@ -34,6 +34,7 @@ views:
           - cliente
           - tipoDocumento
 
+      # catalogoProductos se mantiene — asegúrate de que el cubo exista en tu proyecto
       - join_path: catalogoProductos
         includes:
           - name: descripcion
@@ -54,7 +55,8 @@ views:
         title: "SKU"
 
       - name: codigoCliente
-        sql: "{ventas.cliente}"
+        # CORRECCIÓN: la ruta correcta es a través del join partidasVenta → ventas
+        sql: "{partidasVenta.ventas.cliente}"
         type: string
         title: "Código Cliente"
 
@@ -76,12 +78,14 @@ views:
         format: currency
         title: "Impuestos ($)"
         description: "Total de impuestos calculados (IVA + IEPS) sin duplicados."
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
       - name: ingresoTotalViable
         sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
         type: number
         format: currency
         title: "Venta Bruta ($)"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
       - name: ventaTotal
         sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
@@ -100,19 +104,21 @@ views:
         type: number
         format: currency
         title: "IVA 16%"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
       - name: ieps8
         sql: "{partidasVenta.impuestoIEPS8}"
         type: number
         format: currency
         title: "IEPS 8%"
+        # CORRECCIÓN: sintaxis unificada, eliminada la versión alternativa inválida
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
 
-      - name: cantidadVendida
-        sql: "{partidasVenta.cantidad}"
-        type: number
-        title: "Unidades Vendidas"
+      # CORRECCIÓN: se elimina la redefinición manual — ahora viene del include en partidasVenta
+      # cantidadVendida ya está incluida arriba via join_path: partidasVenta
 
       - name: conteoTickets
-        sql: "{partidasVenta.conteoTickets}"
-        type: number
+        sql: "{partidasVenta.venta}"
+        type: count_distinct
         title: "# Tickets"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
