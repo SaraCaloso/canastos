@@ -7,22 +7,22 @@ cubes:
     joins:
       - name: ventas
         relationship: many_to_one
-        # JOIN CORREGIDO: Evita el error de DuckDB de "outer scope"
+        # Esta lógica selecciona un solo documento por venta (FAC > TIC > REM) para evitar duplicados
         sql: |
           {CUBE}.venta = {ventas.numeroVenta} 
           AND {CUBE}.sucursal = {ventas.sucursal}
-          AND {ventas.tipoDocumento} IN ('FAC', 'TIC', 'REM', 'NC', 'DV', 'PE')
-
-      - name: catalogoProductos
-        relationship: many_to_one
-        sql: |
-          TRY_CAST({CUBE}.articulo AS BIGINT) IS NOT NULL
-          AND TRY_CAST({CUBE}.articulo AS BIGINT) = {catalogoProductos.skuInt}
-
-    segments:
-      - name: partidasValidas
-        sql: "{CUBE}.is_viable = true"
-        title: "Solo Partidas Viables"
+          AND {ventas.tipoDocumento} = (
+            SELECT v2.tipo_doc 
+            FROM canastos_tfx.tfx_table_ventas v2
+            WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
+            ORDER BY 
+              CASE v2.tipo_doc 
+                WHEN 'FAC' THEN 1 
+                WHEN 'TIC' THEN 2 
+                WHEN 'REM' THEN 3 
+                ELSE 4 END 
+            LIMIT 1
+          )
 
     dimensions:
       - name: id
@@ -45,11 +45,6 @@ cubes:
         sql: "{CUBE}.articulo"
         type: string
         title: "SKU (Ticket)"
-
-      - name: descripcion
-        sql: "{CUBE}.observ"
-        type: string
-        title: "Descripción (Ticket)"
 
       - name: sucursal
         sql: "{CUBE}.sucursal"
@@ -85,9 +80,6 @@ cubes:
           END
         type: number
 
-      # ==========================================
-      # ⬇️ DIMENSIONES DE TIEMPO RESTAURADAS ⬇️
-      # ==========================================
       - name: anio
         sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
         type: number
@@ -98,6 +90,7 @@ cubes:
         type: number
         title: "Mes (Num)"
 
+      # Agregamos el nombre de todos los meses
       - name: nombreMes
         sql: |
           CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
@@ -134,9 +127,11 @@ cubes:
         title: "Ingreso Bruto"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
+      # Multiplicar impuesto unitario por cantidad / Más legible
       - name: impuestoIVA16
         sql: |
           CASE 
+            # Calculamos la tasa sobre la base YA con descuento
             WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF(({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0), 0)), 2) = 0.16 
             THEN {CUBE}.impuesto_value 
             ELSE 0 
@@ -171,39 +166,9 @@ cubes:
         title: "# Tickets"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      - name: costoAjustado
-        sql: |
-          CASE 
-            WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
-            THEN {CUBE}.precio * 0.80
-            ELSE {CUBE}.costo
-          END
-        type: sum
-        title: "Costo Unitario Ajustado"
-        
-      - name: conteo
-        type: count
-        title: "# Líneas"
-
-      - name: cantidad
+      # CORRECCIÓN: medida necesaria para que analiticaVentas pueda sumar cantidad
+      - name: cantidadVendida
         sql: "{CUBE}.cantidad"
         type: sum
-        title: "Unidades"
-
-      - name: ingreso
-        sql: "{CUBE}.cantidad * {CUBE}.precio"
-        type: sum
-        format: currency
-        title: "Venta Bruta"
-
-      - name: costo
-        sql: "{CUBE}.cantidad * {costoAjustado}"
-        type: sum
-        format: currency
-        title: "Costo Total"
-
-      - name: margen
-        sql: "({CUBE}.cantidad * {CUBE}.precio) - ({CUBE}.cantidad * {costoAjustado})"
-        type: sum
-        format: currency
-        title: "Utilidad"
+        title: "Unidades Vendidas"
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
