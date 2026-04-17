@@ -36,33 +36,42 @@ views:
         primary_key: true
 
       - name: codigoCliente
-        # Corrección de referencia solicitada
-        sql: "{partidasVenta.ventas.cliente}"
+        sql: "{ventas.cliente}"
         type: string
         title: "Código Cliente"
 
-    # En la vista solo incluimos las medidas, no las definimos con filtros manuales
+    # Se agregó el 'type' requerido por Cube.js en todas las medidas
     measures:
       - name: ventaNeta
         sql: "{partidasVenta.ingresoTotalViable}"
+        type: number
+        format: currency
         title: "Venta Neta ($)"
 
       - name: iva16
         sql: "{partidasVenta.impuestoIVA16}"
+        type: number
+        format: currency
         title: "IVA 16%"
 
       - name: ieps8
         sql: "{partidasVenta.impuestoIEPS8}"
+        type: number
+        format: currency
         title: "IEPS 8%"
 
       - name: utilidad
         sql: "{partidasVenta.margen}"
+        type: number
+        format: currency
         title: "Utilidad Bruta"
 
       - name: tickets
         sql: "{partidasVenta.conteoTickets}"
+        type: number
         title: "# Tickets"
 
       - name: unidades
         sql: "{partidasVenta.cantidadVendida}"
+        type: number
         title: "Unidades Vendidas"
