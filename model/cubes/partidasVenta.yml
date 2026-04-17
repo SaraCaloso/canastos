@@ -7,42 +7,131 @@ cubes:
     joins:
       - name: ventas
         relationship: many_to_one
-        # Simplificamos el JOIN eliminando la subconsulta correlacionada
+        # JOIN CORREGIDO: Evita el error de DuckDB de "outer scope"
         sql: |
           {CUBE}.venta = {ventas.numeroVenta} 
           AND {CUBE}.sucursal = {ventas.sucursal}
           AND {ventas.tipoDocumento} IN ('FAC', 'TIC', 'REM', 'NC', 'DV', 'PE')
-      
+
+      # JOIN NUMÉRICO RECUPERADO DEL ARCHIVO VIEJO
       - name: catalogoProductos
         relationship: many_to_one
         sql: |
           TRY_CAST({CUBE}.articulo AS BIGINT) IS NOT NULL
           AND TRY_CAST({CUBE}.articulo AS BIGINT) = {catalogoProductos.skuInt}
 
+    segments:
+      # SEGMENTO RECUPERADO DEL ARCHIVO VIEJO
+      - name: partidasValidas
+        sql: "{CUBE}.is_viable = true"
+        title: "Solo Partidas Viables"
+
     dimensions:
       - name: id
         sql: "{CUBE}.venta || '-' || {CUBE}.articulo || '-' || {CUBE}.sucursal || '-' || CAST({CUBE}.partition_date AS VARCHAR)"
         type: string
         primary_key: true
+        title: "ID Partida"
 
       - name: venta
         sql: "{CUBE}.venta"
         type: string
+        title: "Número Venta"
+
+      - name: impuesto_value
+        sql: "{CUBE}.impuesto_value"
+        type: number
+        title: "Tasa Impuesto"
+
+      - name: skuRaw
+        sql: "{CUBE}.articulo"
+        type: string
+        title: "SKU (Ticket)"
+
+      # DIMENSIÓN RECUPERADA DEL ARCHIVO VIEJO
+      - name: descripcion
+        sql: "{CUBE}.observ"
+        type: string
+        title: "Descripción (Ticket)"
 
       - name: sucursal
         sql: "{CUBE}.sucursal"
         type: string
+        title: "Sucursal"
+
+      - name: fecha
+        sql: "{CUBE}.partition_date"
+        type: time
+        title: "Fecha"
 
       - name: is_viable
         sql: "{CUBE}.is_viable"
         type: boolean
+        title: "Es Viable"
+
+      - name: precio
+        sql: "{CUBE}.precio"
+        type: number
+        title: "Precio Unitario"
+
+      - name: cantidad_dim
+        sql: "{CUBE}.cantidad"
+        type: number
+        title: "Cantidad Unitario"
+
+      - name: costo_unitario_calc
+        sql: |
+          CASE 
+            WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
+            THEN {CUBE}.precio * 0.80
+            ELSE {CUBE}.costo
+          END
+        type: number
+
+      - name: anio
+        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
+        type: number
+        title: "Año"
+
+      - name: numMes
+        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
+        type: number
+        title: "Mes (Num)"
+
+      - name: nombreMes
+        sql: |
+          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
+            WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
+            WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
+            WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
+          END
+        type: string
+        title: "Mes"
+
+      - name: diaSemana
+        sql: "EXTRACT(DOW FROM {CUBE}.partition_date)"
+        type: number
+        title: "Día Semana"
+
+      - name: descuento
+        sql: "COALESCE({CUBE}.descuento, 0)"
+        type: number
+        title: "Descuento por Artículo"
 
     measures:
+      - name: descuentoTotal
+        sql: "COALESCE({CUBE}.descuento, 0)"
+        type: sum
+        format: currency
+        title: "Total Descuentos (Partidas)"
+        filters: [{ sql: "{CUBE}.is_viable = true" }]
+
       - name: ingresoTotalViable
         sql: "({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0)"
         type: sum
         format: currency
-        title: "Venta Neta"
+        title: "Ingreso Bruto"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIVA16
@@ -69,20 +158,11 @@ cubes:
         title: "IEPS 8%"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      - name: margen
-        sql: |
-          (({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0)) - 
-          ({CUBE}.cantidad * (CASE WHEN {CUBE}.costo <= 0 THEN {CUBE}.precio * 0.8 ELSE {CUBE}.costo END))
+      - name: totalImpuestosCalculados
+        sql: "{CUBE}.impuesto_value"
         type: sum
         format: currency
-        title: "Utilidad Bruta"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
-
-      # Medidas migradas desde la Vista para evitar duplicidad
-      - name: cantidadVendida
-        sql: "{CUBE}.cantidad"
-        type: sum
-        title: "Unidades Vendidas"
+        title: "Total Impuestos"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: conteoTickets
@@ -90,3 +170,43 @@ cubes:
         type: count_distinct
         title: "# Tickets"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
+
+      # ==========================================
+      # ⬇️ MEDIDAS RECUPERADAS DEL ARCHIVO VIEJO ⬇️
+      # ==========================================
+      - name: costoAjustado
+        sql: |
+          CASE 
+            WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
+            THEN {CUBE}.precio * 0.80
+            ELSE {CUBE}.costo
+          END
+        type: sum
+        title: "Costo Unitario Ajustado"
+        
+      - name: conteo
+        type: count
+        title: "# Líneas"
+
+      - name: cantidad
+        sql: "{CUBE}.cantidad"
+        type: sum
+        title: "Unidades"
+
+      - name: ingreso
+        sql: "{CUBE}.cantidad * {CUBE}.precio"
+        type: sum
+        format: currency
+        title: "Venta Bruta"
+
+      - name: costo
+        sql: "{CUBE}.cantidad * {costoAjustado}"
+        type: sum
+        format: currency
+        title: "Costo Total"
+
+      - name: margen
+        sql: "({CUBE}.cantidad * {CUBE}.precio) - ({CUBE}.cantidad * {costoAjustado})"
+        type: sum
+        format: currency
+        title: "Utilidad"
