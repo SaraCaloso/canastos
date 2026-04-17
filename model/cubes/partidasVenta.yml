@@ -7,13 +7,13 @@ cubes:
     joins:
       - name: ventas
         relationship: many_to_one
-        # Usamos la referencia a documentoPrincipal para evitar el error de DuckDB
+        # Resuelve el error de DuckDB comparando con la dimensión calculada en ventas.yml
         sql: |
           {CUBE}.venta = {ventas.numeroVenta} 
           AND {CUBE}.sucursal = {ventas.sucursal}
           AND {ventas.tipoDocumento} = {ventas.documentoPrincipal}
       
-      # JOIN NUMÉRICO: Se mantiene intacto de tu versión anterior
+      # JOIN NUMÉRICO: Mantenido para SKUs con ceros a la izquierda
       - name: catalogoProductos
         relationship: many_to_one
         sql: |
@@ -90,6 +90,7 @@ cubes:
 
     measures:
       - name: ingresoTotalViable
+        # Venta Bruta restando el descuento directo
         sql: "({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0)"
         type: sum
         format: currency
@@ -97,6 +98,7 @@ cubes:
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIVA16
+        # Lógica de impuestos intacta basada en tasa 0.16
         sql: |
           CASE 
             WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF(({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0), 0)), 2) = 0.16 
@@ -109,6 +111,7 @@ cubes:
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIEPS8
+        # Lógica de impuestos intacta basada en tasa 0.08
         sql: |
           CASE 
             WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF(({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0), 0)), 2) = 0.08 
@@ -131,6 +134,7 @@ cubes:
         title: "Costo Unitario Ajustado"
 
       - name: margen
+        # Utilidad basada en el ingreso viable vs costo ajustado
         sql: "{ingresoTotalViable} - ({CUBE}.cantidad * {costoAjustado})"
         type: number
         format: currency
