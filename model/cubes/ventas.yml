@@ -5,19 +5,30 @@ cubes:
     public: true
     
     description: |
-      Este cubo contiene los cabeceros de documentos originales.
-      La deduplicación se gestiona mediante medidas específicas.
+      ⚠️ ADVERTENCIA: Este cubo contiene cabeceros de documentos.
+      Un mismo folio puede tener múltiples registros (PE→FAC, PE→REM).
 
     joins:
       - name: clientes
         relationship: many_to_one
         sql: "{CUBE}.cliente = {clientes.codigoCliente} AND {CUBE}.sucursal = {clientes.sucursal}"
 
+    segments:
+      - name: ventasValidas
+        sql: "{CUBE}.is_viable = true"
+        title: "Solo Ventas Viables"
+
+      - name: sinDuplicacionPedidos
+        # Simplificado para evitar error de 'outer scope'
+        sql: "{CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE')"
+        title: "🎯 Sin Duplicar Pedidos"
+
     dimensions:
       - name: id
         sql: "{CUBE}.venta || '-' || {CUBE}.sucursal || '-' || {CUBE}.tipo_doc"
         type: string
         primary_key: true
+        title: "ID Venta Único"
 
       - name: numeroVenta
         sql: "{CUBE}.venta"
@@ -44,7 +55,42 @@ cubes:
         type: time
         title: "Fecha Venta"
 
+      - name: anio
+        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
+        type: number
+        title: "Año"
+
+      - name: numMes
+        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
+        type: number
+        title: "Mes (Num)"
+
+      - name: nombreMes
+        sql: |
+          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
+            WHEN 1 THEN 'January'
+            WHEN 2 THEN 'February'
+            WHEN 3 THEN 'March'
+            WHEN 4 THEN 'April'
+            WHEN 5 THEN 'May'
+            WHEN 6 THEN 'June'
+            WHEN 7 THEN 'July'
+            WHEN 8 THEN 'August'
+            WHEN 9 THEN 'September'
+            WHEN 10 THEN 'October'
+            WHEN 11 THEN 'November'
+            WHEN 12 THEN 'December'
+          END
+        type: string
+        title: "Mes"
+
     measures:
+      - name: montoTotal
+        sql: "{CUBE}.importe"
+        type: sum
+        format: currency
+        title: "Monto Bruto Cabecero"
+
       - name: montoSinDuplicar
         sql: |
           CASE 
@@ -64,3 +110,9 @@ cubes:
         type: sum
         format: currency
         title: "✅ Impuesto Total Sin Duplicar"
+
+      - name: totalImpuesto
+        sql: "{CUBE}.impuesto"
+        type: sum
+        format: currency
+        title: "Impuesto Total (Bruto)"
