@@ -1,12 +1,32 @@
 cubes:
   - name: ventas
     title: "Ventas (Cabecero)"
-    sql_table: canastos_tfx.tfx_table_ventas
+    # CORRECCIÓN: se reemplaza sql_table por sql con ROW_NUMBER() para deduplicar
+    # por folio+sucursal, priorizando FAC > TIC > PE > REM
+    sql: |
+      SELECT *
+      FROM (
+        SELECT
+          *,
+          ROW_NUMBER() OVER (
+            PARTITION BY venta, sucursal
+            ORDER BY
+              CASE tipo_doc
+                WHEN 'FAC' THEN 1
+                WHEN 'TIC' THEN 2
+                WHEN 'PE'  THEN 3
+                WHEN 'REM' THEN 4
+                ELSE 5
+              END
+          ) AS rn
+        FROM canastos_tfx.tfx_table_ventas
+      ) deduplicado
+      WHERE rn = 1
     public: true
-    
+
     description: |
       ⚠️ ADVERTENCIA: Este cubo contiene cabeceros de documentos.
-      Un mismo folio puede tener múltiples registros (PE→FAC, PE→REM).
+      La deduplicación se aplica por folio+sucursal priorizando FAC > TIC > PE > REM.
 
     joins:
       - name: clientes
@@ -19,7 +39,6 @@ cubes:
         title: "Solo Ventas Viables"
 
       - name: sinDuplicacionPedidos
-        # Simplificado para evitar error de 'outer scope'
         sql: "{CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE')"
         title: "🎯 Sin Duplicar Pedidos"
 
@@ -68,15 +87,15 @@ cubes:
       - name: nombreMes
         sql: |
           CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1 THEN 'January'
-            WHEN 2 THEN 'February'
-            WHEN 3 THEN 'March'
-            WHEN 4 THEN 'April'
-            WHEN 5 THEN 'May'
-            WHEN 6 THEN 'June'
-            WHEN 7 THEN 'July'
-            WHEN 8 THEN 'August'
-            WHEN 9 THEN 'September'
+            WHEN 1  THEN 'January'
+            WHEN 2  THEN 'February'
+            WHEN 3  THEN 'March'
+            WHEN 4  THEN 'April'
+            WHEN 5  THEN 'May'
+            WHEN 6  THEN 'June'
+            WHEN 7  THEN 'July'
+            WHEN 8  THEN 'August'
+            WHEN 9  THEN 'September'
             WHEN 10 THEN 'October'
             WHEN 11 THEN 'November'
             WHEN 12 THEN 'December'
