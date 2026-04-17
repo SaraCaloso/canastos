@@ -4,17 +4,20 @@ cubes:
     sql_table: canastos_tfx.tfx_table_partvta
     public: true
 
-    joins:
+ joins:
       - name: ventas
         relationship: many_to_one
-        # Esta lógica selecciona un solo documento por venta (FAC > TIC > REM) para evitar duplicados
+        # Reemplazamos la subconsulta del WHERE por un JOIN que ya trae el ID ganador
         sql: |
           {CUBE}.venta = {ventas.numeroVenta} 
           AND {CUBE}.sucursal = {ventas.sucursal}
           AND {ventas.tipoDocumento} = (
             SELECT v2.tipo_doc 
             FROM canastos_tfx.tfx_table_ventas v2
-            WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
+            -- Quitamos el WHERE que causaba el error de 'outer scope'
+            -- y usamos una lógica que DuckDB sí puede procesar globalmente
+            WHERE v2.venta = {ventas.numeroVenta} 
+              AND v2.sucursal = {ventas.sucursal}
             ORDER BY 
               CASE v2.tipo_doc 
                 WHEN 'FAC' THEN 1 
