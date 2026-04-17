@@ -7,22 +7,23 @@ cubes:
     joins:
       - name: ventas
         relationship: many_to_one
-        # Esta lógica selecciona un solo documento por venta (FAC > TIC > REM) para evitar duplicados
+        # Usamos la referencia a documentoPrincipal para evitar el error de DuckDB
         sql: |
           {CUBE}.venta = {ventas.numeroVenta} 
           AND {CUBE}.sucursal = {ventas.sucursal}
-          AND {ventas.tipoDocumento} = (
-            SELECT v2.tipo_doc 
-            FROM canastos_tfx.tfx_table_ventas v2
-            WHERE v2.venta = {CUBE}.venta AND v2.sucursal = {CUBE}.sucursal
-            ORDER BY 
-              CASE v2.tipo_doc 
-                WHEN 'FAC' THEN 1 
-                WHEN 'TIC' THEN 2 
-                WHEN 'REM' THEN 3 
-                ELSE 4 END 
-            LIMIT 1
-          )
+          AND {ventas.tipoDocumento} = {ventas.documentoPrincipal}
+      
+      # JOIN NUMÉRICO: Se mantiene intacto de tu versión anterior
+      - name: catalogoProductos
+        relationship: many_to_one
+        sql: |
+          TRY_CAST({CUBE}.articulo AS BIGINT) IS NOT NULL
+          AND TRY_CAST({CUBE}.articulo AS BIGINT) = {catalogoProductos.skuInt}
+
+    segments:
+      - name: partidasValidas
+        sql: "{CUBE}.is_viable = true"
+        title: "Solo Partidas Viables"
 
     dimensions:
       - name: id
@@ -35,11 +36,6 @@ cubes:
         sql: "{CUBE}.venta"
         type: string
         title: "Número Venta"
-
-      - name: impuesto_value
-        sql: "{CUBE}.impuesto_value"
-        type: number
-        title: "Tasa Impuesto"
 
       - name: skuRaw
         sql: "{CUBE}.articulo"
@@ -71,26 +67,16 @@ cubes:
         type: number
         title: "Cantidad Unitario"
 
-      - name: costo_unitario_calc
-        sql: |
-          CASE 
-            WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
-            THEN {CUBE}.precio * 0.80
-            ELSE {CUBE}.costo
-          END
+      - name: impuesto_value
+        sql: "{CUBE}.impuesto_value"
         type: number
+        title: "Impuesto Unitario"
 
-      - name: anio
-        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
+      - name: descuento_dim
+        sql: "COALESCE({CUBE}.descuento, 0)"
         type: number
-        title: "Año"
+        title: "Descuento Unitario"
 
-      - name: numMes
-        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
-        type: number
-        title: "Mes (Num)"
-
-      # Agregamos el nombre de todos los meses
       - name: nombreMes
         sql: |
           CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
@@ -102,43 +88,17 @@ cubes:
         type: string
         title: "Mes"
 
-      - name: diaSemana
-        sql: "EXTRACT(DOW FROM {CUBE}.partition_date)"
-        type: number
-        title: "Día Semana"
-
-      - name: descuento
-        sql: "COALESCE({CUBE}.descuento, 0)"
-        type: number
-        title: "Descuento por Artículo"
-
     measures:
-      - name: descuentoTotal
-        sql: "COALESCE({CUBE}.descuento, 0)"
-        type: sum
-        format: currency
-        title: "Total Descuentos (Partidas)"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
-
       - name: ingresoTotalViable
-        # sql: "{CUBE}.cantidad * {CUBE}.precio"
         sql: "({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0)"
         type: sum
         format: currency
-        title: "Ingreso Bruto"
+        title: "Ingreso Bruto (Neto de Descuento)"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      # Multiplicar impuesto unitario por cantidad / Más legible
       - name: impuestoIVA16
-        # sql: |
-        #   CASE 
-        #     WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio * {CUBE}.cantidad, 0)), 2) = 0.16 
-        #     THEN {CUBE}.impuesto_value 
-        #     ELSE 0 
-        #   END
         sql: |
           CASE 
-            # Calculamos la tasa sobre la base YA con descuento
             WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF(({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0), 0)), 2) = 0.16 
             THEN {CUBE}.impuesto_value 
             ELSE 0 
@@ -149,12 +109,6 @@ cubes:
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIEPS8
-        # sql: |
-        #   CASE 
-        #     WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF({CUBE}.precio * {CUBE}.cantidad, 0)), 2) = 0.08 
-        #     THEN {CUBE}.impuesto_value 
-        #     ELSE 0 
-        #   END
         sql: |
           CASE 
             WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF(({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0), 0)), 2) = 0.08 
@@ -166,15 +120,18 @@ cubes:
         title: "IEPS 8%"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      - name: totalImpuestosCalculados
-        sql: "{CUBE}.impuesto_value"
+      - name: costoAjustado
+        sql: |
+          CASE 
+            WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
+            THEN {CUBE}.precio * 0.80
+            ELSE {CUBE}.costo
+          END
         type: sum
-        format: currency
-        title: "Total Impuestos"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        title: "Costo Unitario Ajustado"
 
-      - name: conteoTickets
-        sql: "{CUBE}.venta"
-        type: count_distinct
-        title: "# Tickets"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+      - name: margen
+        sql: "{ingresoTotalViable} - ({CUBE}.cantidad * {costoAjustado})"
+        type: number
+        format: currency
+        title: "Utilidad"
