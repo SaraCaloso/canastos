@@ -122,21 +122,21 @@ cubes:
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIVA16
-        sql: "CASE WHEN {CUBE}.impuesto = 16 THEN {CUBE}.impuesto_value ELSE 0 END"
+        sql: "CASE WHEN {CUBE}.impuesto = 16 THEN {CUBE}.impuesto_value * {CUBE}.cantidad ELSE 0 END"
         type: sum
         format: currency
         title: "IVA 16%"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIEPS8
-        sql: "CASE WHEN {CUBE}.impuesto = 8 THEN {CUBE}.impuesto_value ELSE 0 END"
+        sql: "CASE WHEN {CUBE}.impuesto = 8 THEN {CUBE}.impuesto_value * {CUBE}.cantidad ELSE 0 END"
         type: sum
         format: currency
         title: "IEPS 8%"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: totalImpuestosCalculados
-        sql: "{CUBE}.impuesto_value"
+        sql: "CASE WHEN {CUBE}.impuesto IN (8,16) THEN {CUBE}.impuesto_value * {CUBE}.cantidad ELSE 0 END"
         type: sum
         format: currency
         title: "Total Impuestos"
