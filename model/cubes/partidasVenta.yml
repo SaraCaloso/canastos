@@ -101,6 +101,11 @@ cubes:
         type: number
         title: "Descuento por Artículo"
 
+      - name: impuesto
+        sql: "{CUBE}.impuesto"
+        type: number
+        title: "Tasa Impuesto (0/8/16)"
+
     measures:
       - name: descuentoTotal
         sql: "COALESCE({CUBE}.descuento, 0)"
@@ -117,24 +122,14 @@ cubes:
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIVA16
-        sql: |
-          CASE 
-            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF(({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0), 0)), 2) = 0.16 
-            THEN {CUBE}.impuesto_value 
-            ELSE 0 
-          END
+        sql: "CASE WHEN {CUBE}.impuesto = 16 THEN {CUBE}.impuesto_value ELSE 0 END"
         type: sum
         format: currency
         title: "IVA 16%"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: impuestoIEPS8
-        sql: |
-          CASE 
-            WHEN ROUND(ABS({CUBE}.impuesto_value / NULLIF(({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0), 0)), 2) = 0.08 
-            THEN {CUBE}.impuesto_value 
-            ELSE 0 
-          END
+        sql: "CASE WHEN {CUBE}.impuesto = 8 THEN {CUBE}.impuesto_value ELSE 0 END"
         type: sum
         format: currency
         title: "IEPS 8%"
