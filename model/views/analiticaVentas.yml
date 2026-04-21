@@ -17,13 +17,13 @@ views:
           - numMes
           - nombreMes
           - diaSemana
-          - ingresoTotalViable
+          - name: ingresoTotalViable
+            alias: ventaBruta
           - totalImpuestosCalculados
           - impuestoIVA16
           - impuestoIEPS8
           - descuentoTotal
           - cantidadVendida
-          - conteoTickets
 
       - join_path: partidasVenta.ventas
         includes:
@@ -32,6 +32,13 @@ views:
           - impuestoSinDuplicar
           - cliente
           - tipoDocumento
+
+      - join_path: catalogoProductos
+        includes:
+          - name: descripcion
+            alias: nombreProducto
+          - linea
+          - marca
 
     dimensions:
       - name: id
@@ -62,11 +69,19 @@ views:
         format: currency
         title: "Venta Neta"
 
+      # FIX: quitados los filters — ya están definidos en partidasVenta
       - name: impuestosTotales
         sql: "{partidasVenta.totalImpuestosCalculados}"
         type: number
         format: currency
         title: "Impuestos ($)"
+        description: "Total de impuestos calculados (IVA + IEPS)."
+
+      - name: ingresoTotalViable
+        sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
+        type: number
+        format: currency
+        title: "Venta Bruta ($)"
 
       - name: ventaTotal
         sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
@@ -80,14 +95,22 @@ views:
         format: currency
         title: "Impuestos Reales (Sin Duplicados)"
 
+      # FIX: quitados los filters — ya están definidos en partidasVenta
       - name: iva16
         sql: "{partidasVenta.impuestoIVA16}"
         type: number
         format: currency
         title: "IVA 16%"
 
+      # FIX: quitados los filters — ya están definidos en partidasVenta
       - name: ieps8
         sql: "{partidasVenta.impuestoIEPS8}"
         type: number
         format: currency
         title: "IEPS 8%"
+
+      - name: conteoTickets
+        sql: "{partidasVenta.venta}"
+        type: count_distinct
+        title: "# Tickets"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
