@@ -22,7 +22,7 @@ cubes:
       WHERE rn = 1
     public: true
     description: |
-      ⚠️ ADVERTENCIA: Este cubo contiene cabeceros de documentos.
+      ⚠️ ADVERTENCIA:  Este cubo contiene cabeceros de documentos.
       La deduplicación se aplica por folio+sucursal priorizando FAC > TIC > PE > REM.
 
     joins:
