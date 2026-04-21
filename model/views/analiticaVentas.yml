@@ -1,6 +1,6 @@
 views:
   # ============================================================
-  # VISTA 1: Totales por ticket — cuadra con Excel/ERP
+  # VISTA 1: Totales por ticket
   # Fuente: tfx_table_ventas (cabecero)
   # Usar para: reportes financieros, conciliación con ERP
   # ============================================================
@@ -29,8 +29,7 @@ views:
 
       - join_path: ventas.clientes
         includes:
-          - name: nombreCliente
-            alias: nombreCliente
+          - nombreCliente
 
     dimensions:
       - name: id
@@ -43,11 +42,6 @@ views:
         sql: "{ventas.numeroVenta}"
         type: string
         title: "Folio ERP"
-
-      - name: cliente
-        sql: "{ventas.cliente}"
-        type: string
-        title: "Código Cliente"
 
     measures:
       - name: ventaTotal
