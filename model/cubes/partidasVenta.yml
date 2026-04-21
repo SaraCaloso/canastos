@@ -31,7 +31,7 @@ cubes:
       - name: impuesto
         sql: "{CUBE}.impuesto"
         type: number
-        title: "Impuesto Unitario ($)"
+        title: "Tasa Impuesto (%)"
 
       - name: skuRaw
         sql: "{CUBE}.articulo"
@@ -71,6 +71,7 @@ cubes:
             ELSE {CUBE}.costo
           END
         type: number
+        title: "Costo Unitario Calculado"
 
       - name: anio
         sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
@@ -98,27 +99,35 @@ cubes:
         type: number
         title: "Día Semana"
 
+      # FIX: se mantiene como dimensión informativa (valor porcentual, NO monto)
       - name: descuento
         sql: "COALESCE({CUBE}.descuento, 0)"
         type: number
-        title: "Descuento por Artículo"
+        title: "Descuento % por Artículo"
 
     measures:
+      # FIX: descuento es porcentaje (ej: 10.0 = 10%), se aplica sobre precio × cantidad
+      # Alineado con fórmula legacy: precio × cantidad × (1 - descuento/100)
+      # Se eliminó a01 ya que siempre es 0 en los datos actuales
       - name: ingresoTotalViable
-        sql: "({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0)"
+        sql: |
+          {CUBE}.cantidad * {CUBE}.precio * (1 - COALESCE({CUBE}.descuento, 0) / 100.0)
         type: sum
         format: currency
         title: "Ingreso Bruto"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
+      # FIX: descuentoTotal ahora calcula el monto real descontado en pesos
+      # Antes sumaba los porcentajes directamente (incorrecto)
       - name: descuentoTotal
-        sql: "COALESCE({CUBE}.descuento, 0)"
+        sql: |
+          {CUBE}.cantidad * {CUBE}.precio * (COALESCE({CUBE}.descuento, 0) / 100.0)
         type: sum
         format: currency
-        title: "Total Descuentos"
+        title: "Total Descuentos ($)"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      # FIX: impuesto_value es monto unitario, se multiplica por cantidad para obtener total
+      # impuesto_value es monto unitario, se multiplica por cantidad para obtener total
       - name: impuestoIVA16
         sql: "CASE WHEN {CUBE}.impuesto = 16 THEN {CUBE}.impuesto_value * {CUBE}.cantidad ELSE 0 END"
         type: sum
@@ -126,7 +135,7 @@ cubes:
         title: "IVA 16%"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      # FIX: impuesto_value es monto unitario, se multiplica por cantidad para obtener total
+      # impuesto_value es monto unitario, se multiplica por cantidad para obtener total
       - name: impuestoIEPS8
         sql: "CASE WHEN {CUBE}.impuesto = 8 THEN {CUBE}.impuesto_value * {CUBE}.cantidad ELSE 0 END"
         type: sum
@@ -134,12 +143,18 @@ cubes:
         title: "IEPS 8%"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
-      # FIX: solo suma impuestos de productos con tasa 8 o 16, multiplicado por cantidad
+      # FIX: se amplió a impuesto > 0 para capturar tasas distintas de 8 y 16
+      # Antes solo cubría exactamente 8 ó 16, dejando fuera otros artículos gravados
       - name: totalImpuestosCalculados
-        sql: "CASE WHEN {CUBE}.impuesto IN (8, 16) THEN {CUBE}.impuesto_value * {CUBE}.cantidad ELSE 0 END"
+        sql: |
+          CASE 
+            WHEN {CUBE}.impuesto > 0 
+            THEN {CUBE}.impuesto_value * {CUBE}.cantidad 
+            ELSE 0 
+          END
         type: sum
         format: currency
-        title: "Total Impuestos"
+        title: "Total Impuestos ($)"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
 
       - name: conteoTickets
