@@ -1,104 +1,37 @@
 views:
-  # ============================================================
-  # VISTA 1: Totales por ticket
-  # Fuente: tfx_table_ventas (cabecero)
-  # Usar para: reportes financieros, conciliación con ERP
-  # ============================================================
-  - name: resumenVentas
-    title: "1. Resumen de Ventas (cuadra con Excel)"
-    description: |
-      Totales monetarios desde el cabecero de ventas.
-      Los importes incluyen impuestos, igual que el reporte Excel del ERP.
-      Usar esta vista para conciliar contra reportes financieros.
-
-    cubes:
-      - join_path: ventas
-        includes:
-          - numeroVenta
-          - tipoDocumento
-          - sucursal
-          - cliente
-          - fechaTransaccion
-          - anio
-          - numMes
-          - nombreMes
-          - diaSemana
-          - montoSinDuplicar    # ✅ cuadra con Excel
-          - impuestoTotal
-          - conteoFolios
-
-      - join_path: ventas.clientes
-        includes:
-          - nombreCliente
-
-    dimensions:
-      - name: id
-        sql: "{ventas.numeroVenta} || '-' || {ventas.sucursal} || '-' || {ventas.tipoDocumento}"
-        type: string
-        primary_key: true
-        title: "ID"
-
-      - name: folio
-        sql: "{ventas.numeroVenta}"
-        type: string
-        title: "Folio ERP"
-
-    measures:
-      - name: ventaTotal
-        sql: "{ventas.montoSinDuplicar}"
-        type: number
-        format: currency
-        title: "✅ Venta Total (con impuesto)"
-        description: "Cuadra con columna 'Total' del Excel ERP"
-
-      - name: ticketPromedio
-        sql: "{ventas.montoSinDuplicar} / NULLIF({ventas.conteoFolios}, 0)"
-        type: number
-        format: currency
-        title: "Ticket Promedio"
-
-      - name: numeroTickets
-        sql: "{ventas.conteoFolios}"
-        type: number
-        title: "# Tickets"
-
-  # ============================================================
-  # VISTA 2: Detalle por artículo — análisis de rentabilidad
-  # Fuente: tfx_table_partvta (partidas)
-  # Usar para: margen por SKU, análisis de producto, costo
-  # NOTA: Los totales NO cuadran exactamente con Excel
-  #       porque los folios son diferentes (503xxx vs 191xxx)
-  # ============================================================
   - name: analiticaVentas
-    title: "2. Analítica por Artículo (margen y SKU)"
-    description: |
-      Detalle por artículo desde tfx_table_partvta.
-      Usar para análisis de rentabilidad, margen, SKU, y cantidad vendida.
-      
-      ⚠️ Los totales monetarios NO cuadran con el Excel ERP porque los folios
-      de partvta (503xxx) son diferentes a los folios del ERP (191xxx).
-      Para conciliación financiera, usar vista 'resumenVentas'.
+    title: "1. Analítica de Ventas"
+    description: "Vista Maestra de Ventas con Impuestos Corregidos"
 
     cubes:
       - join_path: partidasVenta
         includes:
           - venta
           - skuRaw
-          - descripcion
           - sucursal
+          - is_viable
+          - precio
+          - cantidad_dim
           - fecha
           - anio
           - numMes
           - nombreMes
           - diaSemana
-          - ingreso
-          - impuestos
-          - ingresoConImpuesto
-          - costo
-          - margen
-          - cantidad
-          - conteoTickets
-          - conteoLineas
+          - name: ingresoTotalViable
+            alias: ventaBruta
+          - totalImpuestosCalculados
+          - impuestoIVA16
+          - impuestoIEPS8
+          - descuentoTotal
+          - cantidadVendida
+
+      - join_path: partidasVenta.ventas
+        includes:
+          - montoTotal
+          - montoSinDuplicar
+          - impuestoSinDuplicar
+          - cliente
+          - tipoDocumento
 
       - join_path: catalogoProductos
         includes:
@@ -119,55 +52,65 @@ views:
         type: string
         title: "SKU"
 
-      - name: folio
+      - name: codigoCliente
+        sql: "{partidasVenta.ventas.cliente}"
+        type: string
+        title: "Código Cliente"
+
+      - name: numeroTicket
         sql: "{partidasVenta.venta}"
         type: string
-        title: "Folio Interno"
+        title: "Folio Ticket"
 
     measures:
-      - name: ventaBase
-        sql: "{partidasVenta.ingreso}"
+      - name: ventaNeta
+        sql: "{partidasVenta.ingresoTotalViable}"
         type: number
         format: currency
-        title: "Venta Base (sin impuesto)"
+        title: "Venta Neta"
 
-      - name: impuestosPartidas
-        sql: "{partidasVenta.impuestos}"
+      # FIX: quitados los filters — ya están definidos en partidasVenta
+      - name: impuestosTotales
+        sql: "{partidasVenta.totalImpuestosCalculados}"
         type: number
         format: currency
-        title: "Impuestos"
+        title: "Impuestos ($)"
+        description: "Total de impuestos calculados (IVA + IEPS)."
 
-      - name: ventaConImpuesto
-        sql: "{partidasVenta.ingresoConImpuesto}"
+      - name: ingresoTotalViable
+        sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
         type: number
         format: currency
-        title: "Venta Total (con impuesto)"
+        title: "Venta Bruta ($)"
 
-      - name: costoTotal
-        sql: "{partidasVenta.costo}"
+      - name: ventaTotal
+        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
         type: number
         format: currency
-        title: "Costo Total"
+        title: "Venta Total (Final)"
 
-      - name: utilidadBruta
-        sql: "{partidasVenta.margen}"
+      - name: impuestoRealSinDuplicar
+        sql: "{partidasVenta.ventas.impuestoSinDuplicar}"
         type: number
         format: currency
-        title: "Utilidad Bruta"
+        title: "Impuestos Reales (Sin Duplicados)"
 
-      - name: margenPct
-        sql: "{partidasVenta.margen} / NULLIF({partidasVenta.ingreso}, 0) * 100"
-        type: number
-        format: percent
-        title: "Margen %"
-
-      - name: unidadesVendidas
-        sql: "{partidasVenta.cantidad}"
-        type: number
-        title: "Unidades"
-
-      - name: ticketPromedio
-        sql: "{partidasVenta.ingresoConImpuesto} / NULLIF({partidasVenta.conteoTickets}, 0)"
+      # FIX: quitados los filters — ya están definidos en partidasVenta
+      - name: iva16
+        sql: "{partidasVenta.impuestoIVA16}"
         type: number
         format: currency
-        title: "Ticket Promedio"
+        title: "IVA 16%"
+
+      # FIX: quitados los filters — ya están definidos en partidasVenta
+      - name: ieps8
+        sql: "{partidasVenta.impuestoIEPS8}"
+        type: number
+        format: currency
+        title: "IEPS 8%"
+
+      - name: conteoTickets
+        sql: "{partidasVenta.venta}"
+        type: count_distinct
+        title: "# Tickets"
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]

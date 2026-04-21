@@ -1,15 +1,29 @@
 cubes:
   - name: ventas
     title: "Ventas (Cabecero)"
-    sql_table: canastos_tfx.tfx_table_ventas
+    sql: |
+      SELECT *
+      FROM (
+        SELECT
+          *,
+          ROW_NUMBER() OVER (
+            PARTITION BY venta, sucursal
+            ORDER BY
+              CASE tipo_doc
+                WHEN 'FAC' THEN 1
+                WHEN 'TIC' THEN 2
+                WHEN 'PE'  THEN 3
+                WHEN 'REM' THEN 4
+                ELSE 5
+              END
+          ) AS rn
+        FROM canastos_tfx.tfx_table_ventas
+      ) deduplicado
+      WHERE rn = 1
     public: true
-
     description: |
-      Cabeceros de venta desde tfx_table_ventas.
-      Los importes aquí son CON impuesto incluido (tal como reporta el ERP/Excel).
-      Folios en rango 191xxx (folio ERP).
-      
-      ⚠️ Un folio puede tener PE + FAC/REM — usar montoSinDuplicar.
+      ⚠️ ADVERTENCIA: Este cubo contiene cabeceros de documentos.
+      La deduplicación se aplica por folio+sucursal priorizando FAC > TIC > PE > REM.
 
     joins:
       - name: clientes
@@ -22,23 +36,8 @@ cubes:
         title: "Solo Ventas Viables"
 
       - name: sinDuplicacionPedidos
-        sql: |
-          {CUBE}.tipo_doc NOT IN ('PE')
-          OR NOT EXISTS (
-            SELECT 1 FROM canastos_tfx.tfx_table_ventas v2
-            WHERE v2.venta = {CUBE}.venta
-              AND v2.sucursal = {CUBE}.sucursal
-              AND v2.tipo_doc IN ('FAC', 'REM')
-          )
+        sql: "{CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE')"
         title: "Sin Duplicar Pedidos"
-
-      - name: soloTickets
-        sql: "{CUBE}.tipo_doc = 'TIC'"
-        title: "Solo Tickets"
-
-      - name: soloFacturas
-        sql: "{CUBE}.tipo_doc = 'FAC'"
-        title: "Solo Facturas"
 
     dimensions:
       - name: id
@@ -50,22 +49,22 @@ cubes:
       - name: numeroVenta
         sql: "{CUBE}.venta"
         type: string
-        title: "Folio ERP"
+        title: "Folio"
 
       - name: cliente
         sql: "{CUBE}.cliente"
         type: string
         title: "Código Cliente"
 
-      - name: tipoDocumento
-        sql: "{CUBE}.tipo_doc"
-        type: string
-        title: "Tipo Documento"
-
       - name: sucursal
         sql: "{CUBE}.sucursal"
         type: string
         title: "Sucursal"
+
+      - name: tipoDocumento
+        sql: "{CUBE}.tipo_doc"
+        type: string
+        title: "Tipo de Documento"
 
       - name: fechaTransaccion
         sql: "{CUBE}.partition_date"
@@ -85,54 +84,43 @@ cubes:
       - name: nombreMes
         sql: |
           CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1 THEN 'January'   WHEN 2 THEN 'February'  WHEN 3 THEN 'March'
-            WHEN 4 THEN 'April'     WHEN 5 THEN 'May'        WHEN 6 THEN 'June'
-            WHEN 7 THEN 'July'      WHEN 8 THEN 'August'     WHEN 9 THEN 'September'
-            WHEN 10 THEN 'October'  WHEN 11 THEN 'November'  WHEN 12 THEN 'December'
+            WHEN 1  THEN 'Enero'      WHEN 2  THEN 'Febrero'    WHEN 3  THEN 'Marzo'
+            WHEN 4  THEN 'Abril'      WHEN 5  THEN 'Mayo'       WHEN 6  THEN 'Junio'
+            WHEN 7  THEN 'Julio'      WHEN 8  THEN 'Agosto'     WHEN 9  THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre'    WHEN 11 THEN 'Noviembre'  WHEN 12 THEN 'Diciembre'
           END
         type: string
         title: "Mes"
 
-      - name: diaSemana
-        sql: |
-          CASE EXTRACT(DOW FROM {CUBE}.partition_date)
-            WHEN 0 THEN 'Sunday'   WHEN 1 THEN 'Monday'    WHEN 2 THEN 'Tuesday'
-            WHEN 3 THEN 'Wednesday' WHEN 4 THEN 'Thursday' WHEN 5 THEN 'Friday'
-            WHEN 6 THEN 'Saturday'
-          END
-        type: string
-        title: "Día Semana"
-
     measures:
-      - name: conteoFolios
-        sql: "{CUBE}.venta || '-' || {CUBE}.sucursal"
-        type: count_distinct
-        title: "# Tickets"
+      - name: montoTotal
+        sql: "{CUBE}.importe"
+        type: sum
+        format: currency
+        title: "Monto Bruto Cabecero"
 
-      # ✅ ESTA es la medida que cuadra con el Excel
-      # importe en tfx_table_ventas ya incluye impuestos
       - name: montoSinDuplicar
         sql: |
-          CASE
-            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV') THEN {CUBE}.importe
-            WHEN NOT EXISTS (
-              SELECT 1 FROM canastos_tfx.tfx_table_ventas v2
-              WHERE v2.venta = {CUBE}.venta
-                AND v2.sucursal = {CUBE}.sucursal
-                AND v2.tipo_doc IN ('FAC', 'REM')
-            ) THEN {CUBE}.importe
-            ELSE 0
+          CASE 
+            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE') THEN {CUBE}.importe
+            ELSE 0 
           END
         type: sum
         format: currency
-        title: "✅ Venta Total (cuadra con Excel)"
-        description: |
-          Suma el importe del cabecero sin duplicar pedidos.
-          El importe en ventas YA incluye impuestos.
-          Este número debe coincidir con la columna 'Total' del reporte Excel.
+        title: "Monto Sin Duplicar"
 
-      - name: impuestoTotal
+      - name: impuestoSinDuplicar
+        sql: |
+          CASE 
+            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE') THEN {CUBE}.impuesto
+            ELSE 0 
+          END
+        type: sum
+        format: currency
+        title: "Impuesto Total Sin Duplicar"
+
+      - name: totalImpuesto
         sql: "{CUBE}.impuesto"
         type: sum
         format: currency
-        title: "Impuesto (Cabecero)"
+        title: "Impuesto Total (Bruto)"
