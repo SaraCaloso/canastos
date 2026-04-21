@@ -124,7 +124,7 @@ cubes:
         sql: |
           CASE WHEN {CUBE}.impuesto = 16
           THEN {CUBE}.precio
-               * ({CUBE}.cantidad - COALESCE({CUBE}.a01, 0))
+               * {CUBE}.cantidad
                * (1 - COALESCE({CUBE}.descuento, 0) / 100.0)
                * 0.16
           ELSE 0 END
@@ -139,7 +139,7 @@ cubes:
         sql: |
           CASE WHEN {CUBE}.impuesto = 8
           THEN {CUBE}.precio
-               * ({CUBE}.cantidad - COALESCE({CUBE}.a01, 0))
+               * {CUBE}.cantidad
                * (1 - COALESCE({CUBE}.descuento, 0) / 100.0)
                * 0.08
           ELSE 0 END
@@ -154,12 +154,12 @@ cubes:
           CASE
             WHEN {CUBE}.impuesto = 16
             THEN {CUBE}.precio
-                 * ({CUBE}.cantidad - COALESCE({CUBE}.a01, 0))
+                 * {CUBE}.cantidad
                  * (1 - COALESCE({CUBE}.descuento, 0) / 100.0)
                  * 0.16
             WHEN {CUBE}.impuesto = 8
             THEN {CUBE}.precio
-                 * ({CUBE}.cantidad - COALESCE({CUBE}.a01, 0))
+                 * {CUBE}.cantidad
                  * (1 - COALESCE({CUBE}.descuento, 0) / 100.0)
                  * 0.08
             ELSE 0
