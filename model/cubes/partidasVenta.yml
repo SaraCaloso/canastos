@@ -1,171 +1,116 @@
-cubes:
-  - name: partidasVenta
-    title: "Detalle de Ventas (Partidas)"
-    sql_table: canastos_tfx.tfx_table_partvta
-    public: true
+views:
+  - name: analiticaVentas
+    title: "1. Analítica de Ventas"
+    description: "Vista Maestra de Ventas con Impuestos Corregidos"
 
-    joins:
-      - name: ventas
-        relationship: many_to_one
-        sql: |
-          {CUBE}.venta = {ventas.numeroVenta}
-          AND {CUBE}.sucursal = {ventas.sucursal}
+    cubes:
+      - join_path: partidasVenta
+        includes:
+          - venta
+          - skuRaw
+          - sucursal
+          - is_viable
+          - precio
+          - cantidad_dim
+          - fecha
+          - anio
+          - numMes
+          - nombreMes
+          - diaSemana
+          - name: ingresoTotalViable
+            alias: ventaBruta
+          - totalImpuestosCalculados
+          - impuestoIVA16
+          - impuestoIEPS8
+          - descuentoTotal
+          - cantidadVendida
+
+      - join_path: partidasVenta.ventas
+        includes:
+          - montoTotal
+          - montoSinDuplicar
+          - impuestoSinDuplicar
+          - cliente
+          - tipoDocumento
+
+      - join_path: catalogoProductos
+        includes:
+          - name: descripcion
+            alias: nombreProducto
+          - linea
+          - marca
 
     dimensions:
       - name: id
-        sql: "{CUBE}.venta || '-' || {CUBE}.articulo || '-' || {CUBE}.sucursal || '-' || CAST({CUBE}.partition_date AS VARCHAR)"
+        sql: "{partidasVenta.venta} || '-' || {partidasVenta.skuRaw}"
         type: string
         primary_key: true
-        title: "ID Partida"
+        title: "ID Único"
 
-      - name: venta
-        sql: "{CUBE}.venta"
+      - name: sku
+        sql: "{partidasVenta.skuRaw}"
         type: string
-        title: "Número Venta"
+        title: "SKU"
 
-      - name: impuesto_value
-        sql: "{CUBE}.impuesto_value"
-        type: number
-        title: "Monto Impuesto Unitario ($)"
-
-      - name: impuesto
-        sql: "{CUBE}.impuesto"
-        type: number
-        title: "Tasa Impuesto (%)"
-
-      - name: skuRaw
-        sql: "{CUBE}.articulo"
+      - name: codigoCliente
+        sql: "{partidasVenta.ventas.cliente}"
         type: string
-        title: "SKU (Ticket)"
+        title: "Código Cliente"
 
-      - name: sucursal
-        sql: "{CUBE}.sucursal"
+      - name: numeroTicket
+        sql: "{partidasVenta.venta}"
         type: string
-        title: "Sucursal"
-
-      - name: fecha
-        sql: "{CUBE}.partition_date"
-        type: time
-        title: "Fecha"
-
-      - name: is_viable
-        sql: "{CUBE}.is_viable"
-        type: boolean
-        title: "Es Viable"
-
-      - name: precio
-        sql: "{CUBE}.precio"
-        type: number
-        title: "Precio Unitario"
-
-      - name: cantidad_dim
-        sql: "{CUBE}.cantidad"
-        type: number
-        title: "Cantidad"
-
-      - name: costo_unitario_calc
-        sql: |
-          CASE 
-            WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
-            THEN {CUBE}.precio * 0.80
-            ELSE {CUBE}.costo
-          END
-        type: number
-
-      - name: anio
-        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
-        type: number
-        title: "Año"
-
-      - name: numMes
-        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
-        type: number
-        title: "Mes (Num)"
-
-      - name: nombreMes
-        sql: |
-          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1  THEN 'Enero'      WHEN 2  THEN 'Febrero'    WHEN 3  THEN 'Marzo'
-            WHEN 4  THEN 'Abril'      WHEN 5  THEN 'Mayo'       WHEN 6  THEN 'Junio'
-            WHEN 7  THEN 'Julio'      WHEN 8  THEN 'Agosto'     WHEN 9  THEN 'Septiembre'
-            WHEN 10 THEN 'Octubre'    WHEN 11 THEN 'Noviembre'  WHEN 12 THEN 'Diciembre'
-          END
-        type: string
-        title: "Mes"
-
-      - name: diaSemana
-        sql: "EXTRACT(DOW FROM {CUBE}.partition_date)"
-        type: number
-        title: "Día Semana"
-
-      - name: descuento
-        sql: "COALESCE(TRY_CAST({CUBE}.descuento AS DOUBLE), 0)"
-        type: number
-        title: "Descuento por Artículo (%)"
+        title: "Folio Ticket"
 
     measures:
+      - name: ventaNeta
+        sql: "{partidasVenta.ingresoTotalViable}"
+        type: number
+        format: currency
+        title: "Venta Neta"
+
+      # FIX: quitados los filters — ya están definidos en partidasVenta
+      - name: impuestosTotales
+        sql: "{partidasVenta.totalImpuestosCalculados}"
+        type: number
+        format: currency
+        title: "Impuestos ($)"
+        description: "Total de impuestos calculados (IVA + IEPS)."
+
       - name: ingresoTotalViable
-        sql: "{CUBE}.precio * {CUBE}.cantidad * (1 - COALESCE(TRY_CAST({CUBE}.descuento AS DOUBLE), 0) / 100)"
-        type: sum
+        sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
+        type: number
         format: currency
-        title: "Ingreso Bruto"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - sql: "{CUBE}.tipo_doc IS NULL OR {CUBE}.tipo_doc NOT IN ('DEV', 'DV')"
+        title: "Venta Bruta ($)"
 
-      - name: descuentoTotal
-        sql: "{CUBE}.precio * {CUBE}.cantidad * (COALESCE(TRY_CAST({CUBE}.descuento AS DOUBLE), 0) / 100)"
-        type: sum
+      - name: ventaTotal
+        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
+        type: number
         format: currency
-        title: "Total Descuentos ($)"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - sql: "{CUBE}.tipo_doc IS NULL OR {CUBE}.tipo_doc NOT IN ('DEV', 'DV')"
+        title: "Venta Total (Final)"
 
-      - name: impuestoIVA16
-        sql: |
-          CASE WHEN {CUBE}.impuesto = 16 
-          THEN ({CUBE}.precio * {CUBE}.cantidad * (1 - COALESCE(TRY_CAST({CUBE}.descuento AS DOUBLE), 0) / 100)) * 0.16 
-          ELSE 0 END
-        type: sum
+      - name: impuestoRealSinDuplicar
+        sql: "{partidasVenta.ventas.impuestoSinDuplicar}"
+        type: number
+        format: currency
+        title: "Impuestos Reales (Sin Duplicados)"
+
+      # FIX: quitados los filters — ya están definidos en partidasVenta
+      - name: iva16
+        sql: "{partidasVenta.impuestoIVA16}"
+        type: number
         format: currency
         title: "IVA 16%"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - sql: "{CUBE}.tipo_doc IS NULL OR {CUBE}.tipo_doc NOT IN ('DEV', 'DV')"
 
-      - name: impuestoIEPS8
-        sql: |
-          CASE WHEN {CUBE}.impuesto = 8 
-          THEN ({CUBE}.precio * {CUBE}.cantidad * (1 - COALESCE(TRY_CAST({CUBE}.descuento AS DOUBLE), 0) / 100)) * 0.08 
-          ELSE 0 END
-        type: sum
+      # FIX: quitados los filters — ya están definidos en partidasVenta
+      - name: ieps8
+        sql: "{partidasVenta.impuestoIEPS8}"
+        type: number
         format: currency
         title: "IEPS 8%"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - sql: "{CUBE}.tipo_doc IS NULL OR {CUBE}.tipo_doc NOT IN ('DEV', 'DV')"
-
-      - name: totalImpuestosCalculados
-        sql: |
-          CASE WHEN {CUBE}.impuesto IN (8, 16) 
-          THEN ({CUBE}.precio * {CUBE}.cantidad * (1 - COALESCE(TRY_CAST({CUBE}.descuento AS DOUBLE), 0) / 100)) * ({CUBE}.impuesto / 100.0) 
-          ELSE 0 END
-        type: sum
-        format: currency
-        title: "Total Impuestos"
-        filters:
-          - sql: "{CUBE}.is_viable = true"
-          - sql: "{CUBE}.tipo_doc IS NULL OR {CUBE}.tipo_doc NOT IN ('DEV', 'DV')"
 
       - name: conteoTickets
-        sql: "{CUBE}.venta"
+        sql: "{partidasVenta.venta}"
         type: count_distinct
         title: "# Tickets"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
-
-      - name: cantidadVendida
-        sql: "{CUBE}.cantidad"
-        type: sum
-        title: "Unidades Vendidas"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
