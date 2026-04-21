@@ -1,116 +1,127 @@
-views:
-  - name: analiticaVentas
-    title: "1. Analítica de Ventas"
-    description: "Vista Maestra de Ventas con Impuestos Corregidos"
+cubes:
+  - name: ventas
+    title: "Ventas (Cabecero)"
+    sql: |
+      SELECT *
+      FROM (
+        SELECT
+          *,
+          ROW_NUMBER() OVER (
+            PARTITION BY venta, sucursal
+            ORDER BY
+              CASE tipo_doc
+                WHEN 'FAC' THEN 1
+                WHEN 'TIC' THEN 2
+                WHEN 'PE'  THEN 3
+                WHEN 'REM' THEN 4
+                ELSE 5
+              END
+          ) AS rn
+        FROM canastos_tfx.tfx_table_ventas
+      ) deduplicado
+      WHERE rn = 1
+    public: true
 
-    cubes:
-      - join_path: partidasVenta
-        includes:
-          - venta
-          - skuRaw
-          - sucursal
-          - is_viable
-          - precio
-          - cantidad_dim
-          - fecha
-          - anio
-          - numMes
-          - nombreMes
-          - diaSemana
-          - name: ingresoTotalViable
-            alias: ventaBruta
-          - totalImpuestosCalculados
-          - impuestoIVA16
-          - impuestoIEPS8
-          - descuentoTotal
-          - cantidadVendida
+    description: |
+      ⚠️ ADVERTENCIA: Este cubo contiene cabeceros de documentos.
+      La deduplicación se aplica por folio+sucursal priorizando FAC > TIC > PE > REM.
 
-      - join_path: partidasVenta.ventas
-        includes:
-          - montoTotal
-          - montoSinDuplicar
-          - impuestoSinDuplicar
-          - cliente
-          - tipoDocumento
+    joins:
+      - name: clientes
+        relationship: many_to_one
+        sql: "{CUBE}.cliente = {clientes.codigoCliente} AND {CUBE}.sucursal = {clientes.sucursal}"
 
-      - join_path: catalogoProductos
-        includes:
-          - name: descripcion
-            alias: nombreProducto
-          - linea
-          - marca
+    segments:
+      - name: ventasValidas
+        sql: "{CUBE}.is_viable = true"
+        title: "Solo Ventas Viables"
+
+      - name: sinDuplicacionPedidos
+        sql: "{CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE')"
+        title: "Sin Duplicar Pedidos"
 
     dimensions:
       - name: id
-        sql: "{partidasVenta.venta} || '-' || {partidasVenta.skuRaw}"
+        sql: "{CUBE}.venta || '-' || {CUBE}.sucursal || '-' || {CUBE}.tipo_doc"
         type: string
         primary_key: true
-        title: "ID Único"
+        title: "ID Venta Único"
 
-      - name: sku
-        sql: "{partidasVenta.skuRaw}"
+      - name: numeroVenta
+        sql: "{CUBE}.venta"
         type: string
-        title: "SKU"
+        title: "Folio"
 
-      - name: codigoCliente
-        sql: "{partidasVenta.ventas.cliente}"
+      - name: cliente
+        sql: "{CUBE}.cliente"
         type: string
         title: "Código Cliente"
 
-      - name: numeroTicket
-        sql: "{partidasVenta.venta}"
+      - name: sucursal
+        sql: "{CUBE}.sucursal"
         type: string
-        title: "Folio Ticket"
+        title: "Sucursal"
+
+      - name: tipoDocumento
+        sql: "{CUBE}.tipo_doc"
+        type: string
+        title: "Tipo de Documento"
+
+      - name: fechaTransaccion
+        sql: "{CUBE}.partition_date"
+        type: time
+        title: "Fecha Venta"
+
+      - name: anio
+        sql: "EXTRACT(YEAR FROM {CUBE}.partition_date)"
+        type: number
+        title: "Año"
+
+      - name: numMes
+        sql: "EXTRACT(MONTH FROM {CUBE}.partition_date)"
+        type: number
+        title: "Mes (Num)"
+
+      - name: nombreMes
+        sql: |
+          CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
+            WHEN 1  THEN 'Enero'      WHEN 2  THEN 'Febrero'    WHEN 3  THEN 'Marzo'
+            WHEN 4  THEN 'Abril'      WHEN 5  THEN 'Mayo'       WHEN 6  THEN 'Junio'
+            WHEN 7  THEN 'Julio'      WHEN 8  THEN 'Agosto'     WHEN 9  THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre'    WHEN 11 THEN 'Noviembre'  WHEN 12 THEN 'Diciembre'
+          END
+        type: string
+        title: "Mes"
 
     measures:
-      - name: ventaNeta
-        sql: "{partidasVenta.ingresoTotalViable}"
-        type: number
+      - name: montoTotal
+        sql: "{CUBE}.importe"
+        type: sum
         format: currency
-        title: "Venta Neta"
+        title: "Monto Bruto Cabecero"
 
-      # FIX: quitados los filters — ya están definidos en partidasVenta
-      - name: impuestosTotales
-        sql: "{partidasVenta.totalImpuestosCalculados}"
-        type: number
+      - name: montoSinDuplicar
+        sql: |
+          CASE 
+            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE') THEN {CUBE}.importe
+            ELSE 0 
+          END
+        type: sum
         format: currency
-        title: "Impuestos ($)"
-        description: "Total de impuestos calculados (IVA + IEPS)."
+        title: "Monto Sin Duplicar"
 
-      - name: ingresoTotalViable
-        sql: "{partidasVenta.cantidad_dim} * {partidasVenta.precio}"
-        type: number
+      - name: impuestoSinDuplicar
+        sql: |
+          CASE 
+            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE') THEN {CUBE}.impuesto
+            ELSE 0 
+          END
+        type: sum
         format: currency
-        title: "Venta Bruta ($)"
+        title: "Impuesto Total Sin Duplicar"
 
-      - name: ventaTotal
-        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
-        type: number
+      - name: totalImpuesto
+        sql: "{CUBE}.impuesto"
+        type: sum
         format: currency
-        title: "Venta Total (Final)"
-
-      - name: impuestoRealSinDuplicar
-        sql: "{partidasVenta.ventas.impuestoSinDuplicar}"
-        type: number
-        format: currency
-        title: "Impuestos Reales (Sin Duplicados)"
-
-      # FIX: quitados los filters — ya están definidos en partidasVenta
-      - name: iva16
-        sql: "{partidasVenta.impuestoIVA16}"
-        type: number
-        format: currency
-        title: "IVA 16%"
-
-      # FIX: quitados los filters — ya están definidos en partidasVenta
-      - name: ieps8
-        sql: "{partidasVenta.impuestoIEPS8}"
-        type: number
-        format: currency
-        title: "IEPS 8%"
-
-      - name: conteoTickets
-        sql: "{partidasVenta.venta}"
-        type: count_distinct
-        title: "# Tickets"
-        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+        title: "Impuesto Total (Bruto)"
