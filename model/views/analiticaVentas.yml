@@ -36,6 +36,9 @@ views:
          # - impuestoSinDuplicar
           - cliente
           - tipoDocumento
+          # Nuevas dimensiones para mayoreo
+          - observacion
+          - estado 
 
       - join_path: catalogoProductos
         includes:
