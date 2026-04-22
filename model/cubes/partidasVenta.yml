@@ -105,7 +105,7 @@ cubes:
 
     measures:
       - name: ingresoTotalViable
-        sql: "({CUBE}.cantidad * {CUBE}.precio) - COALESCE({CUBE}.descuento, 0)"
+        sql: "{CUBE}.precio * {CUBE}.cantidad * (1 - COALESCE({CUBE}.descuento, 0) / 100.0)"
         type: sum
         format: currency
         title: "Ingreso Bruto"
