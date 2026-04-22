@@ -87,11 +87,11 @@ views:
      #   format: currency
       #  title: "Venta Bruta ($)"
 
-   #   - name: ventaTotal
-    #    sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
-     #   type: number
-      #  format: currency
-       # title: "Venta Total (Final)"
+      - name: ventaTotal
+        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
+        type: number
+        format: currency
+        title: "Venta Total (Final)"
 
       - name: impuestoRealSinDuplicar
         sql: "{partidasVenta.ventas.impuestoSinDuplicar}"
@@ -101,8 +101,8 @@ views:
 
    
 
-      - name: conteoTickets
-        sql: "{partidasVenta.venta}"
-        type: count_distinct
-        title: "# Tickets"
-        filters: [{ sql: "{partidasVenta.is_viable} = true" }]
+     # - name: conteoTickets
+      #  sql: "{partidasVenta.venta}"
+       # type: count_distinct
+        #title: "# Tickets"
+        #filters: [{ sql: "{partidasVenta.is_viable} = true" }]
