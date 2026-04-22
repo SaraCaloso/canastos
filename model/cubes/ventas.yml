@@ -22,7 +22,7 @@ cubes:
       WHERE rn = 1
     public: true
     description: |
-      ⚠️ ADVERTENCIA:  Este cubo contiene cabeceros de documentos.
+      ⚠️ ADVERTENCIA: Este cubo contiene cabeceros de documentos.
       La deduplicación se aplica por folio+sucursal priorizando FAC > TIC > PE > REM.
 
     joins:
@@ -35,6 +35,8 @@ cubes:
         sql: "{CUBE}.is_viable = true"
         title: "Solo Ventas Viables"
 
+      # Segmento para excluir duplicados de pedidos convertidos a factura.
+      # Incluye TIC, NC, PE además de los documentos base.
       - name: sinDuplicacionPedidos
         sql: "{CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE')"
         title: "Sin Duplicar Pedidos"
@@ -98,21 +100,29 @@ cubes:
         type: sum
         format: currency
         title: "Monto Bruto Cabecero"
+        # Suma sin filtro de tipo_doc — incluye todos los documentos.
+        # Usar solo para diagnóstico, no para reportes de ventas.
 
+      # FIX 2025-04 — alineado con reporte original "Ventas por artículo por impuesto"
+      # El reporte original filtra: tipo_doc IN ('FAC', 'DV', 'DEV', 'REM')
+      # Se excluyen TIC, PE, NC que estaban inflando el monto (~$237 diferencia en ARRIETA).
+      # Referencia: CODIGO_Ventas_por_Articulo_por_impuesto.txt línea WHERE ventas.tipo_doc
       - name: montoSinDuplicar
         sql: |
           CASE 
-            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE') THEN {CUBE}.importe
+            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'DV', 'DEV') THEN {CUBE}.importe
             ELSE 0 
           END
         type: sum
         format: currency
         title: "Monto Sin Duplicar"
 
+      # FIX 2025-04 — misma alineación que montoSinDuplicar
+      # Solo FAC, REM, DV, DEV para consistencia con el reporte original.
       - name: impuestoSinDuplicar
         sql: |
           CASE 
-            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE') THEN {CUBE}.impuesto
+            WHEN {CUBE}.tipo_doc IN ('FAC', 'REM', 'DV', 'DEV') THEN {CUBE}.impuesto
             ELSE 0 
           END
         type: sum
@@ -124,3 +134,4 @@ cubes:
         type: sum
         format: currency
         title: "Impuesto Total (Bruto)"
+        # Suma bruta sin filtro. Usar impuestoSinDuplicar para reportes.
