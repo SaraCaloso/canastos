@@ -109,14 +109,28 @@ cubes:
         type: sum
         format: currency
         title: "Ingreso Bruto"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        # filters: [{ sql: "{CUBE}.is_viable = true" }]
+        # Mejorando el filtrado para mayoreo
+        filters: 
+          - sql: |
+              {ventas.is_viable} = true 
+              AND ({ventas.observacion} IS NULL OR {ventas.observacion} NOT LIKE '%tickets anexos%')
+              AND NOT ({ventas.cliente} IN ('sys', 'SYS') AND {ventas.tipoDocumento} = 'FAC')
+              AND {ventas.estado} <> 'PE'
 
       - name: descuentoTotal
         sql: "COALESCE({CUBE}.descuento, 0)"
         type: sum
         format: currency
         title: "Total Descuentos"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        # filters: [{ sql: "{CUBE}.is_viable = true" }]
+        # Mejorando el filtrado para mayoreo
+        filters: 
+          - sql: |
+              {ventas.is_viable} = true 
+              AND ({ventas.observacion} IS NULL OR {ventas.observacion} NOT LIKE '%tickets anexos%')
+              AND NOT ({ventas.cliente} IN ('sys', 'SYS') AND {ventas.tipoDocumento} = 'FAC')
+              AND {ventas.estado} <> 'PE'
 
       # Cálculo correcto: precio * (cantidad - a01) * (1 - descuento/100) * tasa
       # Alineado con la fórmula del reporte original (partvta + ventas)
@@ -131,7 +145,14 @@ cubes:
         type: sum
         format: currency
         title: "IVA 16%"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        # filters: [{ sql: "{CUBE}.is_viable = true" }]
+        # Mejorando el filtrado para mayoreo
+        filters: 
+          - sql: |
+              {ventas.is_viable} = true 
+              AND ({ventas.observacion} IS NULL OR {ventas.observacion} NOT LIKE '%tickets anexos%')
+              AND NOT ({ventas.cliente} IN ('sys', 'SYS') AND {ventas.tipoDocumento} = 'FAC')
+              AND {ventas.estado} <> 'PE'
 
       # Cálculo correcto: precio * (cantidad - a01) * (1 - descuento/100) * tasa
       # Alineado con la fórmula del reporte original (partvta + ventas)
@@ -146,7 +167,14 @@ cubes:
         type: sum
         format: currency
         title: "IEPS 8%"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+       # filters: [{ sql: "{CUBE}.is_viable = true" }]
+        # Mejorando el filtrado para mayoreo
+        filters: 
+          - sql: |
+              {ventas.is_viable} = true 
+              AND ({ventas.observacion} IS NULL OR {ventas.observacion} NOT LIKE '%tickets anexos%')
+              AND NOT ({ventas.cliente} IN ('sys', 'SYS') AND {ventas.tipoDocumento} = 'FAC')
+              AND {ventas.estado} <> 'PE'
 
       # Suma de IVA 16% + IEPS 8% con cálculo correcto
       - name: totalImpuestosCalculados
@@ -167,7 +195,14 @@ cubes:
         type: sum
         format: currency
         title: "Total Impuestos"
-        filters: [{ sql: "{CUBE}.is_viable = true" }]
+        # filters: [{ sql: "{CUBE}.is_viable = true" }]
+        # Mejorando el filtrado para mayoreo
+        filters: 
+          - sql: |
+              {ventas.is_viable} = true 
+              AND ({ventas.observacion} IS NULL OR {ventas.observacion} NOT LIKE '%tickets anexos%')
+              AND NOT ({ventas.cliente} IN ('sys', 'SYS') AND {ventas.tipoDocumento} = 'FAC')
+              AND {ventas.estado} <> 'PE'
 
       - name: conteoTickets
         sql: "{CUBE}.venta"
