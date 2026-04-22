@@ -56,6 +56,10 @@ cubes:
         type: string
         primary_key: true
         title: "ID Venta Único"
+        
+      - name: is_viable
+        sql: "{CUBE}.is_viable"
+        type: boolean
 
       - name: numeroVenta
         sql: "{CUBE}.venta"
@@ -158,7 +162,6 @@ cubes:
 
       # Nueva medida para mayoreo
       - name: montoNetoReal
-        # Multiplicamos por -1 las devoluciones/cancelaciones para que se resten del total [2, 3]
         sql: |
           CASE 
             WHEN {CUBE}.tipo_doc IN ('DV', 'NC', 'DEV') THEN -{CUBE}.importe 
@@ -168,4 +171,9 @@ cubes:
         format: currency
         title: "Venta Neta Real"
         filters:
-          - segment: ventasReales
+          # CAMBIO: Se usa 'sql' en lugar de 'segment' y se corrige 'observ' a 'observacion'
+          - sql: |
+              {CUBE}.is_viable = true 
+              AND ({CUBE}.observacion IS NULL OR {CUBE}.observacion NOT LIKE '%TICKETS ANEXOS%')
+              AND NOT ({CUBE}.cliente IN ('sys', 'SYS') AND {CUBE}.tipo_doc = 'FAC')
+              AND {CUBE}.estado <> 'PE'
