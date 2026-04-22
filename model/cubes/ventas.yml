@@ -57,9 +57,9 @@ cubes:
         primary_key: true
         title: "ID Venta Único"
         
-      - name: is_viable
-        sql: "{CUBE}.is_viable"
-        type: boolean
+      # - name: is_viable
+      #   sql: "{CUBE}.is_viable"
+      #   type: boolean
 
       - name: numeroVenta
         sql: "{CUBE}.venta"
@@ -161,19 +161,19 @@ cubes:
         # Suma bruta sin filtro. Usar impuestoSinDuplicar para reportes.
 
       # Nueva medida para mayoreo
-      - name: montoNetoReal
-        sql: |
-          CASE 
-            WHEN {CUBE}.tipo_doc IN ('DV', 'NC', 'DEV') THEN -{CUBE}.importe 
-            ELSE {CUBE}.importe 
-          END
-        type: sum
-        format: currency
-        title: "Venta Neta Real"
-        filters:
-          # CAMBIO: Se usa 'sql' en lugar de 'segment' y se corrige 'observ' a 'observacion'
-          - sql: |
-              {CUBE}.is_viable = true 
-              AND ({CUBE}.observacion IS NULL OR {CUBE}.observacion NOT LIKE '%TICKETS ANEXOS%')
-              AND NOT ({CUBE}.cliente IN ('sys', 'SYS') AND {CUBE}.tipo_doc = 'FAC')
-              AND {CUBE}.estado <> 'PE'
+      # - name: montoNetoReal
+      #   sql: |
+      #     CASE 
+      #       WHEN {CUBE}.tipo_doc IN ('DV', 'NC', 'DEV') THEN -{CUBE}.importe 
+      #       ELSE {CUBE}.importe 
+      #     END
+      #   type: sum
+      #   format: currency
+      #   title: "Venta Neta Real"
+      #   filters:
+      #     # CAMBIO: Se usa 'sql' en lugar de 'segment' y se corrige 'observ' a 'observacion'
+      #     - sql: |
+      #         {CUBE}.is_viable = true 
+      #         AND ({CUBE}.observacion IS NULL OR {CUBE}.observacion NOT LIKE '%TICKETS ANEXOS%')
+      #         AND NOT ({CUBE}.cliente IN ('sys', 'SYS') AND {CUBE}.tipo_doc = 'FAC')
+      #         AND {CUBE}.estado <> 'PE'
