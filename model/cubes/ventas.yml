@@ -38,8 +38,17 @@ cubes:
       # Segmento para excluir duplicados de pedidos convertidos a factura.
       # Incluye TIC, NC, PE además de los documentos base.
       - name: sinDuplicacionPedidos
-        sql: "{CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE')"
+        sql: "{CUBE}.tipo_doc IN ('FAC', 'REM', 'TIC', 'NC', 'DV', 'PE', 'DEV')"
         title: "Sin Duplicar Pedidos"
+
+      # Segmento para la parte de mayoreo
+      - name: ventasReales
+        sql: |
+          {CUBE}.is_viable = true 
+          AND ({CUBE}.observ IS NULL OR {CUBE}.observ NOT LIKE '%TICKETS ANEXOS%')
+          AND NOT ({CUBE}.cliente IN ('sys', 'SYS') AND {CUBE}.tipo_doc = 'FAC')
+          AND {CUBE}.estado <> 'PE'
+        title: "Ventas Reales (Filtros Aplicados)"
 
     dimensions:
       - name: id
@@ -94,6 +103,17 @@ cubes:
         type: string
         title: "Mes"
 
+      # Nuevas dimensiones para mayoreo
+      - name: observacion
+        sql: "{CUBE}.observacion"
+        type: string
+        title: "Observación"
+        
+      - name: estado
+        sql: "{CUBE}.estado"
+        type: string
+        title: "Estado de Venta"
+
     measures:
       - name: montoTotal
         sql: "{CUBE}.importe"
@@ -135,3 +155,17 @@ cubes:
         format: currency
         title: "Impuesto Total (Bruto)"
         # Suma bruta sin filtro. Usar impuestoSinDuplicar para reportes.
+
+      # Nueva medida para mayoreo
+      - name: montoNetoReal
+        # Multiplicamos por -1 las devoluciones/cancelaciones para que se resten del total [2, 3]
+        sql: |
+          CASE 
+            WHEN {CUBE}.tipo_doc IN ('DV', 'NC', 'DEV') THEN -{CUBE}.importe 
+            ELSE {CUBE}.importe 
+          END
+        type: sum
+        format: currency
+        title: "Venta Neta Real"
+        filters:
+          - segment: ventasReales
