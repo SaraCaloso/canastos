@@ -1,7 +1,37 @@
 cubes:
   - name: partidasVenta
     title: "Detalle de Ventas (Partidas)"
-    sql_table: canastos_tfx.tfx_table_partvta
+    # FIX 2025-04: Cambiado de sql_table a sql para incorporar tipo_doc
+    # desde ventas (cabecero). En partvta, tipo_doc está vacío en ~98%
+    # de los registros — el tipo real vive en tfx_table_ventas.
+    # Se replica la misma deduplicación que usa el cubo ventas.yml
+    # (ROW_NUMBER por venta+sucursal priorizando FAC > TIC > PE > REM).
+    sql: |
+      SELECT
+        p.*,
+        v.tipo_doc AS tipo_doc_cab
+      FROM canastos_tfx.tfx_table_partvta AS p
+      LEFT JOIN (
+        SELECT
+          venta,
+          sucursal,
+          tipo_doc,
+          ROW_NUMBER() OVER (
+            PARTITION BY venta, sucursal
+            ORDER BY
+              CASE tipo_doc
+                WHEN 'FAC' THEN 1
+                WHEN 'TIC' THEN 2
+                WHEN 'PE'  THEN 3
+                WHEN 'REM' THEN 4
+                ELSE 5
+              END
+          ) AS rn
+        FROM canastos_tfx.tfx_table_ventas
+      ) AS v
+        ON p.venta = v.venta
+        AND p.sucursal = v.sucursal
+        AND v.rn = 1
     public: true
 
     joins:
@@ -63,6 +93,12 @@ cubes:
         type: number
         title: "Cantidad"
 
+      # Tipo de documento real (viene del cabecero ventas, no de partvta)
+      - name: tipoDocCab
+        sql: "{CUBE}.tipo_doc_cab"
+        type: string
+        title: "Tipo Documento"
+
       - name: costo_unitario_calc
         sql: |
           CASE 
@@ -104,10 +140,9 @@ cubes:
         title: "Descuento por Artículo"
 
     measures:
-      # FIX 2025-04 — Agregado filtro tipo_doc IN ('FAC','DV','DEV','REM')
-      # Alineado con reporte original: CODIGO_Ventas_por_Articulo_por_impuesto.txt
-      # Sin este filtro, ABASTOS MAYOREO incluía documentos PE/TIC que duplicaban
-      # partidas de G0 (~$6,303 de diferencia detectada el 22-abril-2026).
+      # Filtro sobre tipo_doc_cab (columna del cabecero embebida en el SQL base)
+      # Equivalente exacto al WHERE del reporte original:
+      # ventas.tipo_doc IN ('FAC', 'DV', 'DEV', 'REM')
       - name: ingresoTotalViable
         sql: "{CUBE}.precio * {CUBE}.cantidad * (1 - COALESCE({CUBE}.descuento, 0) / 100.0)"
         type: sum
@@ -116,7 +151,7 @@ cubes:
         filters:
           - sql: |
               {CUBE}.is_viable = true
-              AND {ventas.tipoDocumento} IN ('FAC', 'DV', 'DEV', 'REM')
+              AND {CUBE}.tipo_doc_cab IN ('FAC', 'DV', 'DEV', 'REM')
 
       - name: descuentoTotal
         sql: "COALESCE({CUBE}.descuento, 0)"
@@ -126,10 +161,8 @@ cubes:
         filters:
           - sql: |
               {CUBE}.is_viable = true
-              AND {ventas.tipoDocumento} IN ('FAC', 'DV', 'DEV', 'REM')
+              AND {CUBE}.tipo_doc_cab IN ('FAC', 'DV', 'DEV', 'REM')
 
-      # Cálculo: precio * cantidad * (1 - descuento/100) * 0.16
-      # Solo para artículos con impuesto = 16 (IVA)
       - name: impuestoIVA16
         sql: |
           CASE WHEN {CUBE}.impuesto = 16
@@ -144,10 +177,8 @@ cubes:
         filters:
           - sql: |
               {CUBE}.is_viable = true
-              AND {ventas.tipoDocumento} IN ('FAC', 'DV', 'DEV', 'REM')
+              AND {CUBE}.tipo_doc_cab IN ('FAC', 'DV', 'DEV', 'REM')
 
-      # Cálculo: precio * cantidad * (1 - descuento/100) * 0.08
-      # Solo para artículos con impuesto = 8 (IEPS)
       - name: impuestoIEPS8
         sql: |
           CASE WHEN {CUBE}.impuesto = 8
@@ -162,9 +193,8 @@ cubes:
         filters:
           - sql: |
               {CUBE}.is_viable = true
-              AND {ventas.tipoDocumento} IN ('FAC', 'DV', 'DEV', 'REM')
+              AND {CUBE}.tipo_doc_cab IN ('FAC', 'DV', 'DEV', 'REM')
 
-      # Suma de IVA 16% + IEPS 8%
       - name: totalImpuestosCalculados
         sql: |
           CASE
@@ -186,10 +216,9 @@ cubes:
         filters:
           - sql: |
               {CUBE}.is_viable = true
-              AND {ventas.tipoDocumento} IN ('FAC', 'DV', 'DEV', 'REM')
+              AND {CUBE}.tipo_doc_cab IN ('FAC', 'DV', 'DEV', 'REM')
 
-      # conteoTickets y cantidadVendida no filtran por tipo_doc
-      # para mantener visibilidad completa de operaciones
+      # Sin filtro de tipo_doc — conteo total de operaciones viables
       - name: conteoTickets
         sql: "{CUBE}.venta"
         type: count_distinct
