@@ -260,3 +260,12 @@ cubes:
         type: sum
         title: "Unidades Vendidas"
         filters: [{ sql: "{CUBE}.is_viable = true" }]
+
+      # Ticket promedio por transacción = ingreso bruto / número de tickets.
+      # Indica cuánto gasta en promedio un cliente por visita.
+      # NULLIF evita división entre cero cuando no hay ventas en el periodo.
+      - name: ticketPromedio
+        sql: "{ingresoTotalViable} / NULLIF({conteoTickets}, 0)"
+        type: number
+        format: currency
+        title: "Ticket Promedio"

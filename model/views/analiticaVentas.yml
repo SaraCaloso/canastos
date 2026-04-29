@@ -42,6 +42,7 @@ views:
           - venta # Número de folio de la venta
           - precio # Precio unitario del artículo
           - cantidad_dim # Cantidad vendida del artículo
+          - ticketPromedio
 
           # Se exponen con alias para facilitar la lectura en reportes:
           - name: ingresoTotalViable
