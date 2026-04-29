@@ -269,7 +269,10 @@ cubes:
       # Indica cuánto gasta en promedio un cliente por visita.
       # NULLIF evita división entre cero cuando no hay ventas en el periodo.
       - name: ticketPromedio
-        sql: "{ingresoTotalViable} / NULLIF({conteoTickets}, 0)"
+        sql: |
+          ( {ingresoTotalViable} + {totalImpuestosCalculados} )
+          / NULLIF({conteoTickets}, 0)
         type: number
         format: currency
         title: "Ticket Promedio"
+        description: "Venta total con impuestos + numero de tickets unicos"
