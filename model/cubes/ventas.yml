@@ -169,7 +169,7 @@ cubes:
       # Texto libre de observaciones capturado en la venta.
       # Se usa para detectar agrupaciones especiales como "TICKETS ANEXOS".
       - name: observacion
-        sql: "{CUBE}.observacion"
+        sql: "{CUBE}.observ"
         type: string
         title: "Observación"
 
