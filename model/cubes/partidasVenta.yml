@@ -29,8 +29,8 @@ cubes:
         sql: |
           {CUBE}.venta = {ventas.numeroVenta}
           AND {CUBE}.sucursal = {ventas.sucursal}
-          # Se cruza por AMBOS campos (folio + sucursal) para evitar
-          # mezclar folios iguales de distintas sucursales.
+    #Se cruza por AMBOS campos (folio + sucursal) para evitar
+    #mezclar folios iguales de distintas sucursales.
 
     # -------------------------------------------------------------------------
     # DIMENSIONES
