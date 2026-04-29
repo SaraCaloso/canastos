@@ -31,7 +31,11 @@ cubes:
           AND {CUBE}.sucursal = {ventas.sucursal}
     #Se cruza por AMBOS campos (folio + sucursal) para evitar
     #mezclar folios iguales de distintas sucursales.
-
+      - name: catalogoProductos
+        relationship: many_to_one
+        sql: "{CUBE}.articulo = {catalogoProductos.sku}"
+        -- articulo en partvta ya es VARCHAR, sku en catalogoProductos también
+        -- el join funciona directo sin CAST adicional
     # -------------------------------------------------------------------------
     # DIMENSIONES
     # Atributos descriptivos usados para filtrar, agrupar o segmentar los datos.
