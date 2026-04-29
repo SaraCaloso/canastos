@@ -4,20 +4,14 @@ views:
     description: |
       Auditoría y control de efectivo por corte de caja.
       Compara efectivo recaudado vs ventas reportadas en Z.
-      
-      CASOS DE USO:
-      - Detectar faltantes/sobrantes de caja por sucursal/estación
-      - Analizar diferencias entre efectivo y reporte Z
-      - Monitorear cortes de caja y cajeros
-      - Identificar patrones de faltantes por día/hora/cajero
-      
-      NOTA: Para análisis de devoluciones y reconciliación contable,
-      usar la vista 'reconciliacionEfectivo'.
-    
+
+      FIX 2026-04: Se eliminó el workaround de fecha. Ahora incluye datos
+      completos usando TRY_CAST para tolerar el schema drift de TORREON ARCOIRIS.
+      Se agregaron medidas de tasa 8% (IEPS).
+
     public: true
 
     cubes:
-      # --- Datos de Cortes Z ---
       - join_path: cortesDiarios
         includes:
           # Dimensiones
@@ -27,73 +21,64 @@ views:
           - estacion
           - tipoCorte
           - horaCorte
-          # Dimensiones temporales (calculadas directamente en el cubo)
           - anio
           - numMes
           - nombreMes
           - diaSemana
-          
-          # Medidas de Cortes Z
+          # Medidas
           - ventasReportadasZ
           - efectivoCaja
           - totalIngresos
           - clientesAtendidos
           - ticketPromedioZ
           - conteoCortes
-          
-          # Impuestos
+          # Impuestos 16% y 0%
           - ventasConImpuesto10
           - impuesto10
           - ventasConImpuesto15
           - impuesto15
+          # ── Tasa 8% (IEPS) — agregado 2026-04 ──────────────────────────
+          - ventas8
+          - impuesto8
 
     measures:
-      # --- Medidas de Diferencia (Cortes Z) ---
       - name: diferencia
         sql: "{cortesDiarios.efectivoCaja} - {cortesDiarios.ventasReportadasZ}"
         type: number
         format: currency
         title: "Diferencia (Efectivo - Venta Z)"
         description: |
-          Diferencia entre efectivo en caja y ventas reportadas en Z.
-          - Positivo: Sobrante de caja
-          - Negativo: Faltante de caja
-          - Cero: Cuadre perfecto
-          
-          NOTA: Esta diferencia NO considera devoluciones.
-          Para análisis ajustado, usar 'reconciliacionEfectivo'.
+          Positivo = Sobrante | Negativo = Faltante | Cero = Cuadre perfecto
 
       - name: porcentajeDiferencia
         sql: |
-          ({cortesDiarios.efectivoCaja} - {cortesDiarios.ventasReportadasZ}) 
+          ({cortesDiarios.efectivoCaja} - {cortesDiarios.ventasReportadasZ})
           / NULLIF({cortesDiarios.ventasReportadasZ}, 0) * 100
         type: number
         format: percent
         title: "% Diferencia"
-        description: "Porcentaje de diferencia respecto a las ventas reportadas"
 
     segments:
-      # --- Segmentos de Cortes ---
       - name: conFaltantes
         sql: "{cortesDiarios.efectivoCaja} < {cortesDiarios.ventasReportadasZ}"
         title: "Con Faltantes de Caja"
-        description: "Cortes donde el efectivo es menor a las ventas reportadas"
 
       - name: conSobrantes
         sql: "{cortesDiarios.efectivoCaja} > {cortesDiarios.ventasReportadasZ}"
         title: "Con Sobrantes de Caja"
-        description: "Cortes donde el efectivo es mayor a las ventas reportadas"
 
       - name: cuadrados
         sql: "{cortesDiarios.efectivoCaja} = {cortesDiarios.ventasReportadasZ}"
         title: "Cuadrados (Sin Diferencia)"
-        description: "Cortes donde el efectivo coincide exactamente con las ventas"
 
       - name: soloZ
         sql: "{cortesDiarios.tipoCorte} = 'z'"
-        title: "Solo Cortes Z (Cierre de Día)"
+        title: "Solo Cortes Z"
+
+      - name: sinCobranza
+        sql: "{cortesDiarios.estacion} != 'COBRANZA'"
+        title: "Sin Estación Cobranza"
 
       - name: diferenciaSignificativa
         sql: "ABS({cortesDiarios.efectivoCaja} - {cortesDiarios.ventasReportadasZ}) > 1000"
         title: "Diferencia > $1,000"
-        description: "Cortes con diferencias mayores a $1,000 (positivas o negativas)"

@@ -1,35 +1,52 @@
 cubes:
   - name: cortesDiarios
     title: "Cortes de Caja"
-    description: "Cortes de caja (X y Z) con ventas reportadas, efectivo y diferencias. WORKAROUND: Excluye fechas >= 2025-11-20 por schema drift en Parquet."
-    
-    # ⚠️ WORKAROUND TEMPORAL: Filtrar fechas >= 2025-11-20 en el sql
-    # Los archivos Parquet del 20 Nov+ tienen campos numéricos como DOUBLE
-    # mientras que la tabla los define como VARCHAR, causando HIVE_BAD_DATA
-    # TODO: Remover este filtro cuando se regeneren los Parquets o se ajuste el schema
+    description: |
+      Cortes de caja (X y Z) con ventas reportadas, efectivo y diferencias.
+
+      FIX 2026-04: Se reemplazó el workaround de fecha (< 2025-11-20) por exclusión
+      de TORREON ARCOIRIS y uso de TRY_CAST para manejar el schema drift en Parquet.
+      Ahora incluye todos los datos históricos disponibles.
+
     sql: |
-      SELECT *
+      SELECT
+        numerocorte,
+        estacion,
+        sucursal,
+        corte,
+        usuhora,
+        usufecha,
+        partition_date,
+        clientesatendidos,
+        cort_id,
+        -- TRY_CAST en lugar de CAST para tolerar filas con schema drift
+        TRY_CAST(totalventas    AS DOUBLE) AS totalventas,
+        TRY_CAST(totalcaja      AS DOUBLE) AS totalcaja,
+        TRY_CAST(totalingresos  AS DOUBLE) AS totalingresos,
+        TRY_CAST(ventasimpuesto10 AS DOUBLE) AS ventasimpuesto10,
+        TRY_CAST(impuesto10     AS DOUBLE) AS impuesto10,
+        TRY_CAST(ventasimpuesto15 AS DOUBLE) AS ventasimpuesto15,
+        TRY_CAST(impuesto15     AS DOUBLE) AS impuesto15,
+        TRY_CAST(clientesatendidos AS INTEGER) AS clientes_int
       FROM canastos_tfx.tfx_table_cortes
-      WHERE partition_date < DATE '2025-11-20'
-    
+      WHERE sucursal != 'TORREON ARCOIRIS'
+        AND sucursal != 'DPBodega-Test'
+
     public: false
 
     joins: []
 
     dimensions:
-      # --- PK OBLIGATORIA ---
       - name: id
-        sql: "{CUBE}.numerocorte || '-' || {CUBE}.sucursal || '-' || CAST({CUBE}.partition_date AS VARCHAR)"
+        sql: "{CUBE}.cort_id"
         type: string
         primary_key: true
         title: "ID Corte"
 
-      # --- Dimensiones Básicas ---
       - name: numeroCorte
         sql: "{CUBE}.numerocorte"
         type: string
         title: "Número de Corte"
-        description: "Folio consecutivo del corte"
 
       - name: fechaCorte
         sql: "{CUBE}.partition_date"
@@ -49,18 +66,10 @@ cubes:
       - name: nombreMes
         sql: |
           CASE EXTRACT(MONTH FROM {CUBE}.partition_date)
-            WHEN 1 THEN 'January'
-            WHEN 2 THEN 'February'
-            WHEN 3 THEN 'March'
-            WHEN 4 THEN 'April'
-            WHEN 5 THEN 'May'
-            WHEN 6 THEN 'June'
-            WHEN 7 THEN 'July'
-            WHEN 8 THEN 'August'
-            WHEN 9 THEN 'September'
-            WHEN 10 THEN 'October'
-            WHEN 11 THEN 'November'
-            WHEN 12 THEN 'December'
+            WHEN 1  THEN 'Enero'      WHEN 2  THEN 'Febrero'    WHEN 3  THEN 'Marzo'
+            WHEN 4  THEN 'Abril'      WHEN 5  THEN 'Mayo'       WHEN 6  THEN 'Junio'
+            WHEN 7  THEN 'Julio'      WHEN 8  THEN 'Agosto'     WHEN 9  THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre'    WHEN 11 THEN 'Noviembre'  WHEN 12 THEN 'Diciembre'
           END
         type: string
         title: "Mes"
@@ -68,13 +77,10 @@ cubes:
       - name: diaSemana
         sql: |
           CASE EXTRACT(DOW FROM {CUBE}.partition_date)
-            WHEN 0 THEN 'Sunday'
-            WHEN 1 THEN 'Monday'
-            WHEN 2 THEN 'Tuesday'
-            WHEN 3 THEN 'Wednesday'
-            WHEN 4 THEN 'Thursday'
-            WHEN 5 THEN 'Friday'
-            WHEN 6 THEN 'Saturday'
+            WHEN 0 THEN 'Domingo'   WHEN 1 THEN 'Lunes'
+            WHEN 2 THEN 'Martes'    WHEN 3 THEN 'Miércoles'
+            WHEN 4 THEN 'Jueves'    WHEN 5 THEN 'Viernes'
+            WHEN 6 THEN 'Sábado'
           END
         type: string
         title: "Día Semana"
@@ -88,13 +94,12 @@ cubes:
         sql: "{CUBE}.estacion"
         type: string
         title: "Estación/Caja"
-        description: "ID de la caja que realizó el corte"
 
       - name: tipoCorte
         sql: "{CUBE}.corte"
         type: string
         title: "Tipo de Corte"
-        description: "X (parcial) o Z (cierre de día)"
+        description: "z = cierre de día, x = parcial"
 
       - name: horaCorte
         sql: "{CUBE}.usuhora"
@@ -107,66 +112,87 @@ cubes:
         title: "Fecha de Registro"
 
     measures:
-      # --- Medidas de Ventas Reportadas ---
       - name: ventasReportadasZ
-        sql: "CAST({CUBE}.totalventas AS DOUBLE)"
+        sql: "{CUBE}.totalventas"
         type: sum
         format: currency
         title: "Ventas Reportadas (Z)"
-        description: "Total de ventas según reporte Z"
 
       - name: efectivoCaja
-        sql: "CAST({CUBE}.totalcaja AS DOUBLE)"
+        sql: "{CUBE}.totalcaja"
         type: sum
         format: currency
         title: "Efectivo en Caja"
-        description: "Dinero físico contabilizado en caja"
 
       - name: totalIngresos
-        sql: "CAST({CUBE}.totalingresos AS DOUBLE)"
+        sql: "{CUBE}.totalingresos"
         type: sum
         format: currency
         title: "Total Ingresos"
-        description: "Total de ingresos registrados"
 
       - name: ventasConImpuesto10
-        sql: "CAST({CUBE}.ventasimpuesto10 AS DOUBLE)"
+        sql: "{CUBE}.ventasimpuesto10"
         type: sum
         format: currency
-        title: "Ventas con Impuesto 10%"
+        title: "Ventas Base 16%"
 
       - name: impuesto10
-        sql: "CAST({CUBE}.impuesto10 AS DOUBLE)"
+        sql: "{CUBE}.impuesto10"
         type: sum
         format: currency
-        title: "Impuesto 10%"
+        title: "IVA 16%"
 
       - name: ventasConImpuesto15
-        sql: "CAST({CUBE}.ventasimpuesto15 AS DOUBLE)"
+        sql: "{CUBE}.ventasimpuesto15"
         type: sum
         format: currency
-        title: "Ventas con Impuesto 15%"
+        title: "Ventas Exentas (0%)"
 
       - name: impuesto15
-        sql: "CAST({CUBE}.impuesto15 AS DOUBLE)"
+        sql: "{CUBE}.impuesto15"
         type: sum
         format: currency
-        title: "Impuesto 15%"
+        title: "IVA 0%"
 
-      # --- Medidas de Clientes ---
+      # ── Tasa 8% derivada ───────────────────────────────────────────────────
+      - name: ventas8
+        sql: |
+          (
+            SUM({CUBE}.totalventas)
+            - SUM({CUBE}.impuesto15)
+            - SUM({CUBE}.impuesto10)
+            - SUM({CUBE}.ventasimpuesto10)
+            - SUM({CUBE}.ventasimpuesto15)
+          ) / 1.08
+        type: number
+        format: currency
+        title: "Ventas Base 8% (IEPS)"
+
+      - name: impuesto8
+        sql: |
+          (
+            (
+              SUM({CUBE}.totalventas)
+              - SUM({CUBE}.impuesto15)
+              - SUM({CUBE}.impuesto10)
+              - SUM({CUBE}.ventasimpuesto10)
+              - SUM({CUBE}.ventasimpuesto15)
+            ) / 1.08
+          ) * 0.08
+        type: number
+        format: currency
+        title: "IEPS 8%"
+
       - name: clientesAtendidos
-        sql: "CAST({CUBE}.clientesatendidos AS INTEGER)"
+        sql: "{CUBE}.clientes_int"
         type: sum
         title: "# Clientes Atendidos"
-        description: "Número de clientes según reporte Z"
 
-      # --- Medidas Calculadas ---
       - name: ticketPromedioZ
-        sql: "CAST({CUBE}.totalventas AS DOUBLE) / NULLIF(CAST({CUBE}.clientesatendidos AS INTEGER), 0)"
+        sql: "{CUBE}.totalventas / NULLIF({CUBE}.clientes_int, 0)"
         type: avg
         format: currency
         title: "Ticket Promedio (Z)"
-        description: "Venta promedio por cliente según Z"
 
       - name: conteoCortes
         type: count
@@ -175,8 +201,12 @@ cubes:
     segments:
       - name: cortesZ
         sql: "{CUBE}.corte = 'z'"
-        title: "Solo Cortes Z (Cierre de Día)"
+        title: "Solo Cortes Z"
 
       - name: cortesX
         sql: "{CUBE}.corte = 'x'"
-        title: "Solo Cortes X (Parciales)"
+        title: "Solo Cortes X"
+
+      - name: sinCobranza
+        sql: "{CUBE}.estacion != 'COBRANZA'"
+        title: "Sin Estación Cobranza"

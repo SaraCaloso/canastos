@@ -3,37 +3,57 @@ cubes:
     title: "Cortes Z Diarios (Reconciliación)"
     description: |
       Cortes Z agregados por día y sucursal para reconciliación con ventas del sistema.
-      
+
       FILTROS APLICADOS:
-      - Solo cortes tipo 'Z' (cierre de día)
-      - Excluye estación 'COBRANZA' (depósitos/transferencias, no ventas POS)
-      - Excluye 'DPBodega-Test' (sucursal de prueba)
-      - Agregación: día + sucursal
-      
-      NOTA: CEDIS incluido pero puede tener diferencias grandes por ventas B2B sin POS.
-    
+      - Solo cortes tipo 'z' (cierre de día)
+      - Excluye estación 'COBRANZA'
+      - Excluye 'DPBodega-Test' y 'TORREON ARCOIRIS' (schema drift)
+      - Agrupación: día + sucursal
+
+      FIX 2026-04: Reemplazado workaround de fecha por TRY_CAST + exclusión de sucursal.
+      Ahora incluye datos desde 2025-11-20 en adelante.
+
     sql: |
-      SELECT 
-        partition_date AS fecha,
+      SELECT
+        partition_date                                                    AS fecha,
         sucursal,
-        SUM(CAST(totalventas AS DOUBLE)) as ventas_z,
-        SUM(CAST(totalcaja AS DOUBLE)) as efectivo_caja,
-        SUM(CAST(totalcaja AS DOUBLE)) - SUM(CAST(totalventas AS DOUBLE)) as diferencia_z,
-        SUM(CAST(totalingresos AS DOUBLE)) as total_ingresos,
-        SUM(CAST(totalingresos AS DOUBLE)) - SUM(CAST(totalcaja AS DOUBLE)) as retiros_efectivo,
-        SUM(CAST(ventasimpuesto10 AS DOUBLE)) as ventas_impuesto10,
-        SUM(CAST(impuesto10 AS DOUBLE)) as impuesto10_sum,
-        SUM(CAST(ventasimpuesto15 AS DOUBLE)) as ventas_impuesto15,
-        SUM(CAST(impuesto15 AS DOUBLE)) as impuesto15_sum,
-        SUM(CAST(clientesatendidos AS INTEGER)) as clientes_atendidos,
-        COUNT(*) as num_cortes_z
+        SUM(TRY_CAST(totalventas      AS DOUBLE))                        AS ventas_z,
+        SUM(TRY_CAST(totalcaja        AS DOUBLE))                        AS efectivo_caja,
+        SUM(TRY_CAST(totalcaja        AS DOUBLE))
+          - SUM(TRY_CAST(totalventas  AS DOUBLE))                        AS diferencia_z,
+        SUM(TRY_CAST(totalingresos    AS DOUBLE))                        AS total_ingresos,
+        SUM(TRY_CAST(totalingresos    AS DOUBLE))
+          - SUM(TRY_CAST(totalcaja    AS DOUBLE))                        AS retiros_efectivo,
+        SUM(TRY_CAST(ventasimpuesto10 AS DOUBLE))                        AS ventas_impuesto10,
+        SUM(TRY_CAST(impuesto10       AS DOUBLE))                        AS impuesto10_sum,
+        SUM(TRY_CAST(ventasimpuesto15 AS DOUBLE))                        AS ventas_impuesto15,
+        SUM(TRY_CAST(impuesto15       AS DOUBLE))                        AS impuesto15_sum,
+        -- Tasa 8% derivada
+        (
+          SUM(TRY_CAST(totalventas      AS DOUBLE))
+          - SUM(TRY_CAST(impuesto15     AS DOUBLE))
+          - SUM(TRY_CAST(impuesto10     AS DOUBLE))
+          - SUM(TRY_CAST(ventasimpuesto10 AS DOUBLE))
+          - SUM(TRY_CAST(ventasimpuesto15 AS DOUBLE))
+        ) / 1.08                                                          AS ventas8,
+        (
+          (
+            SUM(TRY_CAST(totalventas      AS DOUBLE))
+            - SUM(TRY_CAST(impuesto15     AS DOUBLE))
+            - SUM(TRY_CAST(impuesto10     AS DOUBLE))
+            - SUM(TRY_CAST(ventasimpuesto10 AS DOUBLE))
+            - SUM(TRY_CAST(ventasimpuesto15 AS DOUBLE))
+          ) / 1.08
+        ) * 0.08                                                          AS impuesto8,
+        SUM(TRY_CAST(clientesatendidos AS INTEGER))                       AS clientes_atendidos,
+        COUNT(*)                                                          AS num_cortes_z
       FROM canastos_tfx.tfx_table_cortes
-      WHERE partition_date < DATE '2025-11-20'
-        AND corte = 'z'
+      WHERE corte = 'z'
         AND sucursal != 'DPBodega-Test'
+        AND sucursal != 'TORREON ARCOIRIS'
         AND (estacion IS NULL OR estacion != 'COBRANZA')
       GROUP BY partition_date, sucursal
-    
+
     public: false
 
     joins:
@@ -42,20 +62,16 @@ cubes:
         sql: "{CUBE}.fecha = {reconciliacionVentasDiarias.fecha} AND {CUBE}.sucursal = {reconciliacionVentasDiarias.sucursal}"
 
     dimensions:
-      # --- PK OBLIGATORIA ---
       - name: id
         sql: "CAST({CUBE}.fecha AS VARCHAR) || '-' || {CUBE}.sucursal"
         type: string
         primary_key: true
         title: "ID Agregado"
-        description: "Clave única: fecha-sucursal"
 
-      # --- Dimensiones de Agregación ---
       - name: fecha
         sql: "{CUBE}.fecha"
         type: time
         title: "Fecha"
-        description: "Fecha del corte Z (agregación diaria)"
 
       - name: sucursal
         sql: "{CUBE}.sucursal"
@@ -63,89 +79,90 @@ cubes:
         title: "Sucursal"
 
     measures:
-      # --- Ventas Reportadas en Z ---
       - name: ventasZ
         sql: "{CUBE}.ventas_z"
         type: sum
         format: currency
         title: "Ventas Reportadas (Z)"
-        description: "Total de ventas según reporte Z"
 
-      # --- Efectivo en Caja ---
       - name: efectivoCaja
         sql: "{CUBE}.efectivo_caja"
         type: sum
         format: currency
         title: "Efectivo en Caja"
-        description: "Dinero físico contabilizado en caja"
 
-      # --- Diferencia Z (Efectivo - Ventas) ---
       - name: diferenciaZ
         sql: "{CUBE}.diferencia_z"
         type: sum
         format: currency
         title: "Diferencia Z (Efectivo - Ventas)"
-        description: "Faltante o sobrante según corte Z"
 
-      # --- Total Ingresos ---
       - name: totalIngresos
         sql: "{CUBE}.total_ingresos"
         type: sum
         format: currency
         title: "Total Ingresos"
-        description: "Ingresos en efectivo ANTES de retiros programados"
 
-      # --- Retiros de Efectivo ---
       - name: retirosEfectivo
         sql: "{CUBE}.retiros_efectivo"
         type: sum
         format: currency
         title: "Retiros de Efectivo"
-        description: |
-          Retiros programados de efectivo por seguridad.
-          Calculado como: Total Ingresos - Efectivo en Caja.
-          Los retiros típicamente son en montos redondos ($2K, $5K, $8K, $10K).
+        description: "Total Ingresos - Efectivo en Caja"
 
-      # --- Impuestos ---
       - name: ventasImpuesto10
         sql: "{CUBE}.ventas_impuesto10"
         type: sum
         format: currency
-        title: "Ventas con Impuesto 10%"
+        title: "Ventas Base 16%"
 
       - name: impuesto10
         sql: "{CUBE}.impuesto10_sum"
         type: sum
         format: currency
-        title: "Impuesto 10%"
+        title: "IVA 16%"
 
       - name: ventasImpuesto15
         sql: "{CUBE}.ventas_impuesto15"
         type: sum
         format: currency
-        title: "Ventas con Impuesto 15%"
+        title: "Ventas Exentas (0%)"
 
       - name: impuesto15
         sql: "{CUBE}.impuesto15_sum"
         type: sum
         format: currency
-        title: "Impuesto 15%"
+        title: "IVA 0%"
 
-      # --- Clientes ---
+      # ── Tasa 8% ────────────────────────────────────────────────────────────
+      - name: ventas8
+        sql: "{CUBE}.ventas8"
+        type: sum
+        format: currency
+        title: "Ventas Base 8% (IEPS)"
+
+      - name: impuesto8
+        sql: "{CUBE}.impuesto8"
+        type: sum
+        format: currency
+        title: "IEPS 8%"
+
+      - name: totalImpuestosDesglosados
+        sql: "{CUBE}.impuesto15_sum + {CUBE}.impuesto10_sum + {CUBE}.impuesto8"
+        type: sum
+        format: currency
+        title: "Total Impuestos (0%+8%+16%)"
+
       - name: clientesAtendidos
         sql: "{CUBE}.clientes_atendidos"
         type: sum
         title: "# Clientes Atendidos"
-        description: "Número de clientes según Z"
 
-      # --- Conteos ---
       - name: numCortesZ
         sql: "{CUBE}.num_cortes_z"
         type: sum
         title: "# Cortes Z"
-        description: "Número de cortes Z realizados"
 
-      # --- Ticket Promedio ---
       - name: ticketPromedioZ
         sql: "{CUBE}.ventas_z / NULLIF({CUBE}.clientes_atendidos, 0)"
         type: avg
