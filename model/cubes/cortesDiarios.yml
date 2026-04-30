@@ -9,6 +9,7 @@ cubes:
       Ahora incluye todos los datos históricos disponibles.
 
     sql: |
+
       SELECT
         numerocorte,
         estacion,
@@ -27,10 +28,9 @@ cubes:
         TRY_CAST(ventasimpuesto15 AS DOUBLE) AS ventasimpuesto15,
         TRY_CAST(impuesto15     AS DOUBLE) AS impuesto15,
         TRY_CAST(clientesatendidos AS INTEGER) AS clientes_int,
-        TRY_CAST(partition_date AS TIMESTAMP) AS partition_date,
+        TRY_CAST(partition_date AS TIMESTAMP) AS partition_date
       FROM canastos_tfx.tfx_table_cortes
-      WHERE 
-         sucursal != 'DPBodega-Test'
+      WHERE sucursal != 'DPBodega-Test'
 
     public: false
 
