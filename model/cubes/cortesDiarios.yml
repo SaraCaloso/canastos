@@ -29,7 +29,7 @@ cubes:
         TRY_CAST(impuesto15     AS DOUBLE) AS impuesto15,
         TRY_CAST(clientesatendidos AS INTEGER) AS clientes_int
       FROM canastos_tfx.tfx_table_cortes
-      WHERE AND sucursal != 'DPBodega-Test'
+      WHERE sucursal != 'DPBodega-Test'
 
     public: false
 
