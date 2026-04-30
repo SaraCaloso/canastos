@@ -27,9 +27,9 @@ cubes:
         TRY_CAST(impuesto10     AS DOUBLE) AS impuesto10,
         TRY_CAST(ventasimpuesto15 AS DOUBLE) AS ventasimpuesto15,
         TRY_CAST(impuesto15     AS DOUBLE) AS impuesto15,
-        TRY_CAST(clientesatendidos AS INTEGER) AS clientes_int,
+        TRY_CAST(clientesatendidos AS INTEGER) AS clientes_int
       FROM canastos_tfx.tfx_table_cortes
-      WHERE sucursal != 'DPBodega-Test'
+      WHERE AND sucursal != 'DPBodega-Test'
 
     public: false
 
@@ -48,7 +48,7 @@ cubes:
         title: "Número de Corte"
 
       - name: fechaCorte
-        sql: "TRY_CAST({CUBE}.partition_date AS TIMESTAMP)"
+        sql: "{CUBE}.partition_date"
         type: time
         title: "Fecha de Corte"
 
