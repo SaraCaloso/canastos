@@ -49,7 +49,7 @@ cubes:
         title: "Número de Corte"
 
       - name: fechaCorte
-        sql: "{CUBE}.partition_date"
+        sql: "{CUBE}.partition_date AS TIMESTAMP"
         type: time
         title: "Fecha de Corte"
 
