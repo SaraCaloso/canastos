@@ -276,3 +276,26 @@ cubes:
         format: currency
         title: "Ticket Promedio"
         description: "Venta total con impuestos + numero de tickets unicos"
+
+      - name: costoTotal
+        sql: "{CUBE}.costo_unitario_calc * {CUBE}.cantidad"
+        type: sum
+        format: currency
+        title: "Costo Total"
+
+      - name: utilidadBruta
+        sql: >
+          SUM({CUBE}.precio * {CUBE}.cantidad * (1 - COALESCE({CUBE}.descuento, 0)))
+          - SUM({CUBE}.costo_unitario_calc * {CUBE}.cantidad)
+        type: number
+        format: currency
+        title: "Utilidad Bruta"
+
+      - name: margenBruto
+        sql: >
+          (SUM({CUBE}.precio * {CUBE}.cantidad * (1 - COALESCE({CUBE}.descuento, 0)))
+          - SUM({CUBE}.costo_unitario_calc * {CUBE}.cantidad))
+          / NULLIF(SUM({CUBE}.precio * {CUBE}.cantidad * (1 - COALESCE({CUBE}.descuento, 0))), 0)
+        type: number
+        format: percent
+        title: "Margen Bruto %"
