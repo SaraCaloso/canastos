@@ -281,7 +281,9 @@ cubes:
         sql: >
           SUM(
             CASE 
-              WHEN {CUBE}.costo <= 0 OR {CUBE}.costo > {CUBE}.precio 
+              WHEN {CUBE}.costo <= 0 
+                OR {CUBE}.costo > {CUBE}.precio 
+                
               THEN {CUBE}.precio * 0.80
               ELSE {CUBE}.costo
             END
