@@ -1,0 +1,131 @@
+# =============================================================================
+# VISTA: analiticaLineas
+# =============================================================================
+# Vista genérica de ventas agrupadas por línea y artículo.
+# Combina el detalle de ventas (partidasVenta) con el catálogo de productos
+# (catalogoProductos) para exponer en un solo lugar las dimensiones de
+# clasificación del inventario junto con las métricas de venta.
+#
+# Casos de uso principales:
+#   - Reporte "Ventas por Línea de Artículo" (equivalente al reporte Excel
+#     generado desde el sistema contable original)
+#   - Análisis de desempeño por línea, marca o artículo individual
+#   - Base para rankings de productos más vendidos por categoría
+#
+# Cubos que consolida:
+#   1. partidasVenta      → métricas de venta (importe, impuesto, cantidad)
+#   2. catalogoProductos  → clasificación del artículo (línea, marca, descripción)
+#
+# ¿Por qué una vista separada de analiticaVentas?
+#   analiticaVentas también incluye el cabecero (ventas) para datos de cliente
+#   y tipo de documento, lo que agrega complejidad y joins innecesarios cuando
+#   solo se necesita analizar a nivel artículo/línea. Esta vista es más ligera
+#   y directa para reportes de producto.
+#
+# Nota sobre SKUs alfanuméricos:
+#   catalogoProductos filtra solo artículos con SKU numérico (TRY_CAST válido).
+#   Los artículos con código alfanumérico no aparecerán en esta vista hasta
+#   que se amplíe el catálogo para incluirlos.
+# =============================================================================
+
+views:
+  - name: analiticaLineas
+    title: "2. Analítica por Línea de Artículo"
+    description: "Vista genérica de ventas por línea, marca y artículo con métricas de importe, impuesto y cantidad"
+
+    cubes:
+      # -----------------------------------------------------------------------
+      # BLOQUE 1: Campos del cubo "partidasVenta"
+      # Es el cubo principal de esta vista. Aporta todas las métricas de venta
+      # y las dimensiones temporales y de sucursal.
+      # Todos los demás cubos se unen a través de él.
+      # -----------------------------------------------------------------------
+      - join_path: partidasVenta
+        includes:
+          # --- Dimensiones de contexto ---
+          - sucursal        # Sucursal donde ocurrió la venta
+          - fecha           # Fecha de la transacción (campo time, útil para filtros)
+          - anio            # Año extraído de fecha
+          - numMes          # Número de mes (1–12)
+          - nombreMes       # Nombre del mes en español para etiquetas en reportes
+          - diaSemana       # Día de la semana (0=Dom, 6=Sáb)
+          - is_viable       # Indicador de registro válido/viable
+          - skuRaw          # Código del artículo tal como aparece en el ticket
+          - venta           # Número de folio de la venta
+
+          # --- Métricas de venta ---
+          # Se exponen con alias para alinearse con la terminología del reporte:
+          - name: ingresoTotalViable
+            alias: importe          # Importe = precio × cantidad × (1 - descuento%)
+                                    # Equivale a la columna "Importe" del reporte Excel
+
+          - name: totalImpuestosCalculados
+            alias: impuesto         # IVA 16% + IEPS 8% calculados por partida
+                                    # Equivale a la columna "Impuesto" del reporte Excel
+
+          - name: cantidadVendida
+            alias: cantVendida      # Total de unidades físicas vendidas
+                                    # Equivale a "Cant.Vendida" del reporte Excel
+
+          - conteoTickets           # Número de folios únicos (≈ transacciones)
+          - ticketPromedio          # Ingreso total con impuestos / tickets únicos
+          - descuentoTotal          # Suma de descuentos aplicados en pesos
+
+      # -----------------------------------------------------------------------
+      # BLOQUE 2: Campos del catálogo de productos
+      # Aporta la clasificación descriptiva de cada artículo.
+      # Se une directamente a partidasVenta por SKU.
+      #
+      # ⚠️ Solo cubre artículos con SKU numérico. Los alfanuméricos quedan
+      #    fuera hasta que se amplíe la cobertura del catálogo.
+      # -----------------------------------------------------------------------
+      - join_path: catalogoProductos
+        includes:
+          - name: descripcion
+            alias: nombreProducto   # Nombre legible del artículo
+                                    # Equivale a "Descripción" del reporte Excel
+
+          - linea                   # Clave de línea (ej: B01, L02)
+                                    # Equivale a la columna "Línea" y agrupador del reporte Excel
+
+          - marca                   # Marca del artículo (para análisis por proveedor/marca)
+
+          - name: skuInt
+            alias: codigoArticulo   # SKU en formato numérico
+                                    # Equivale a la columna "Artículo" del reporte Excel
+
+    # -------------------------------------------------------------------------
+    # DIMENSIONES ADICIONALES DE LA VISTA
+    # Calculadas directamente en la vista para facilitar el uso en Preset
+    # sin necesidad de referenciar el cubo base explícitamente.
+    # -------------------------------------------------------------------------
+    dimensions:
+      # Llave primaria de la vista: combina folio + SKU + sucursal + fecha para
+      # identificar de forma única cada línea de análisis en el explorador.
+      - name: id
+        sql: "{partidasVenta.venta} || '-' || {partidasVenta.skuRaw} || '-' || {partidasVenta.sucursal} || '-' || CAST({partidasVenta.fecha} AS VARCHAR)"
+        type: string
+        primary_key: true
+        title: "ID Único"
+
+      # SKU del artículo expuesto como atajo en la vista.
+      # Evita tener que ir al cubo base para referenciar el código de artículo.
+      - name: sku
+        sql: "{partidasVenta.skuRaw}"
+        type: string
+        title: "SKU"
+
+    # -------------------------------------------------------------------------
+    # MEDIDAS ADICIONALES DE LA VISTA
+    # Medidas calculadas que combinan métricas de partidasVenta para
+    # expresar el total final que pagó el cliente (base + impuestos).
+    # -------------------------------------------------------------------------
+    measures:
+      # Total de venta al consumidor = importe base + impuestos calculados.
+      # Es la cifra que el cliente pagó realmente (precio con impuestos incluidos).
+      # Equivale a la columna "Total" del reporte Excel.
+      - name: total
+        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
+        type: number
+        format: currency
+        title: "Total (Con Impuestos)"
