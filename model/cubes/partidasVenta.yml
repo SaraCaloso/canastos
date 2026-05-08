@@ -36,9 +36,19 @@ cubes:
         sql: "{CUBE}.articulo = {catalogoProductos.sku}"
         #articulo en partvta ya es VARCHAR, sku en catalogoProductos también
         # el join funciona directo sin CAST adicional
-      - name: catalogoLineas
+      # - name: catalogoLineas
+      #   relationship: many_to_one
+      #   sql: "{CUBE}.articulo = {catalogoLineas.sku}"
+      - name: historicoInventario
         relationship: many_to_one
-        sql: "{CUBE}.articulo = {catalogoLineas.sku}"
+        sql: |
+          {CUBE}.articulo = CAST({historicoInventario.sku} AS VARCHAR)
+          AND {historicoInventario.fechaCaptura} = (
+            SELECT MAX(partition_date)
+            FROM canastos_tfx.tfx_table_inv
+            WHERE CAST(articulo AS VARCHAR) = {CUBE}.articulo
+          )
+
     # -------------------------------------------------------------------------
     # DIMENSIONES
     # Atributos descriptivos usados para filtrar, agrupar o segmentar los datos.

@@ -3,7 +3,7 @@
 # =============================================================================
 # Vista genérica de ventas agrupadas por línea y artículo.
 # Combina el detalle de ventas (partidasVenta) con el catálogo de productos
-# (catalogoLineas) para exponer en un solo lugar las dimensiones de
+# (historicoInventario) para exponer en un solo lugar las dimensiones de
 # clasificación del inventario junto con las métricas de venta.
 #
 # Casos de uso principales:
@@ -14,7 +14,7 @@
 #
 # Cubos que consolida:
 #   1. partidasVenta      → métricas de venta (importe, impuesto, cantidad)
-#   2. catalogoLineas  → clasificación del artículo (línea, marca, descripción)
+#   2. historicoInventario  → clasificación del artículo (línea, marca, descripción)
 #
 # ¿Por qué una vista separada de analiticaVentas?
 #   analiticaVentas también incluye el cabecero (ventas) para datos de cliente
@@ -23,7 +23,7 @@
 #   y directa para reportes de producto.
 #
 # Nota sobre SKUs alfanuméricos:
-#   catalogoLineas filtra solo artículos con SKU numérico (TRY_CAST válido).
+#   historicoInventario filtra solo artículos con SKU numérico (TRY_CAST válido).
 #   Los artículos con código alfanumérico no aparecerán en esta vista hasta
 #   que se amplíe el catálogo para incluirlos.
 # =============================================================================
@@ -79,7 +79,7 @@ views:
       # ⚠️ Solo cubre artículos con SKU numérico. Los alfanuméricos quedan
       #    fuera hasta que se amplíe la cobertura del catálogo.
       # -----------------------------------------------------------------------
-      - join_path: catalogoLineas
+      - join_path: historicoInventario
         includes:
           - name: producto
             alias: nombreProducto   # Nombre legible del artículo
