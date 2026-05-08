@@ -2,7 +2,7 @@ cubes:
   - name: historicoInventario
     title: "Historico de Inventario"
     # ANTERIOR SQL
-    sql_table: canastos_tfx.tfx_table_inv
+    # sql_table: canastos_tfx.tfx_table_inv
     # NUEVO SQL
     sql: |
       SELECT 
