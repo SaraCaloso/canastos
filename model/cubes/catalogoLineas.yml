@@ -44,7 +44,7 @@ cubes:
         CAST(articulo AS VARCHAR) AS sku, 
         MAX(linea) as linea, 
         MAX(marca) as marca, 
-        MAX(producto) as producto
+        MAX(descrip) as producto
       FROM canastos_tfx.tfx_table_inv
       WHERE articulo IS NOT NULL
       GROUP BY CAST(articulo AS VARCHAR)
