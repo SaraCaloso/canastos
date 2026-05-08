@@ -87,25 +87,10 @@ views:
     # sin necesidad de referenciar el cubo base explícitamente.
     # -------------------------------------------------------------------------
     dimensions:
-      # Llave primaria de la vista: combina folio + SKU + sucursal + fecha para
+      # Llave primaria de la vista: combina venta y sucursal para
       # identificar de forma única cada línea de análisis en el explorador.
       - name: id
-        sql: "{partidasVenta.venta} || '-' || {partidasVenta.skuRaw} || '-' || {partidasVenta.sucursal} || '-' || CAST({partidasVenta.fecha} AS VARCHAR)"
+        sql: "{partidasVenta.venta} || '-' || {partidasVenta.sucursal}"
         type: string
         primary_key: true
         title: "ID Único"
-
-    # -------------------------------------------------------------------------
-    # MEDIDAS ADICIONALES DE LA VISTA
-    # Medidas calculadas que combinan métricas de partidasVenta para
-    # expresar el total final que pagó el cliente (base + impuestos).
-    # -------------------------------------------------------------------------
-    measures:
-      # Total de venta al consumidor = importe base + impuestos calculados.
-      # Es la cifra que el cliente pagó realmente (precio con impuestos incluidos).
-      # Equivale a la columna "Total" del reporte Excel.
-      - name: total
-        sql: "{partidasVenta.ingresoTotalViable} + {partidasVenta.totalImpuestosCalculados}"
-        type: number
-        format: currency
-        title: "Total (Con Impuestos)"
