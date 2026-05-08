@@ -49,27 +49,6 @@ views:
           - numMes          # Número de mes (1–12)
           - nombreMes       # Nombre del mes en español para etiquetas en reportes
           - diaSemana       # Día de la semana (0=Dom, 6=Sáb)
-          - is_viable       # Indicador de registro válido/viable
-          - skuRaw          # Código del artículo tal como aparece en el ticket
-          - venta           # Número de folio de la venta
-
-          # --- Métricas de venta ---
-          # Se exponen con alias para alinearse con la terminología del reporte:
-          - name: ingresoTotalViable
-            alias: importe          # Importe = precio × cantidad × (1 - descuento%)
-                                    # Equivale a la columna "Importe" del reporte Excel
-
-          - name: totalImpuestosCalculados
-            alias: impuesto         # IVA 16% + IEPS 8% calculados por partida
-                                    # Equivale a la columna "Impuesto" del reporte Excel
-
-          - name: cantidadVendida
-            alias: cantVendida      # Total de unidades físicas vendidas
-                                    # Equivale a "Cant.Vendida" del reporte Excel
-
-          - conteoTickets           # Número de folios únicos (≈ transacciones)
-          - ticketPromedio          # Ingreso total con impuestos / tickets únicos
-          - descuentoTotal          # Suma de descuentos aplicados en pesos
 
       # -----------------------------------------------------------------------
       # BLOQUE 2: Campos del catálogo de productos
@@ -93,6 +72,14 @@ views:
           - name: sku
             alias: codigoArticulo   # SKU en formato numérico
                                     # Equivale a la columna "Artículo" del reporte Excel
+          - name: importe
+            alias: importe
+          - name: impuesto
+            alias: impuesto
+          - name: cantVendida
+            alias: cantVendida
+          - name: total
+            alias: total
 
     # -------------------------------------------------------------------------
     # DIMENSIONES ADICIONALES DE LA VISTA

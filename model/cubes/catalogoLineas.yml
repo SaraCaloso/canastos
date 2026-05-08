@@ -34,20 +34,33 @@ cubes:
     public: true
 
     sql: |
-      -- =========================================================
-      -- Colapsamos todos los cortes históricos de inventario
-      -- a UN SOLO registro por SKU.
-      -- MAX() es arbitrario aquí porque línea, marca y descrip
-      -- no cambian entre cortes para el mismo artículo.
-      -- =========================================================
-      SELECT 
-        CAST(articulo AS VARCHAR) AS sku, 
-        MAX(linea) as linea, 
-        MAX(marca) as marca, 
-        MAX(descrip) as producto
-      FROM canastos_tfx.tfx_table_inv
-      WHERE articulo IS NOT NULL
-      GROUP BY CAST(articulo AS VARCHAR)
+      SELECT
+        CAST(inv.articulo AS VARCHAR)          AS sku,
+        MAX(inv.linea)                          AS linea,
+        MAX(inv.marca)                          AS marca,
+        MAX(inv.descrip)                        AS producto,
+        COALESCE(SUM(
+          CASE WHEN p.is_viable = true
+          THEN p.precio * p.cantidad * (1 - COALESCE(p.descuento, 0) / 100.0)
+          ELSE 0 END
+        ), 0)                                   AS importe,
+        COALESCE(SUM(
+          CASE 
+            WHEN p.is_viable = true AND p.impuesto = 16
+            THEN p.precio * p.cantidad * (1 - COALESCE(p.descuento, 0) / 100.0) * 0.16
+            WHEN p.is_viable = true AND p.impuesto = 8
+            THEN p.precio * p.cantidad * (1 - COALESCE(p.descuento, 0) / 100.0) * 0.08
+            ELSE 0 END
+        ), 0)                                   AS impuesto,
+        COALESCE(SUM(
+          CASE WHEN p.is_viable = true
+          THEN p.cantidad ELSE 0 END
+        ), 0)                                   AS cant_vendida
+      FROM canastos_tfx.tfx_table_inv inv
+      LEFT JOIN canastos_tfx.tfx_table_partvta p
+        ON CAST(inv.articulo AS VARCHAR) = p.articulo
+      WHERE inv.articulo IS NOT NULL
+      GROUP BY CAST(inv.articulo AS VARCHAR)
 
     # -------------------------------------------------------------------------
     # JOINS
@@ -97,3 +110,27 @@ cubes:
         sql: "{CUBE}.producto"
         type: string
         title: "Producto"
+    
+    measures:
+      - name: importe
+        sql: "{CUBE}.importe"
+        type: sum
+        format: currency
+        title: "Importe"
+
+      - name: impuesto
+        sql: "{CUBE}.impuesto"
+        type: sum
+        format: currency
+        title: "Impuesto"
+
+      - name: cantVendida
+        sql: "{CUBE}.cant_vendida"
+        type: sum
+        title: "Cant. Vendida"
+
+      - name: total
+        sql: "{CUBE}.importe + {CUBE}.impuesto"
+        type: number
+        format: currency
+        title: "Total"
