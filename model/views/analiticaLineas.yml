@@ -3,7 +3,7 @@
 # =============================================================================
 # Vista genérica de ventas agrupadas por línea y artículo.
 # Combina el detalle de ventas (partidasVenta) con el catálogo de productos
-# (catalogoProductos) para exponer en un solo lugar las dimensiones de
+# (historicoInventario) para exponer en un solo lugar las dimensiones de
 # clasificación del inventario junto con las métricas de venta.
 #
 # Casos de uso principales:
@@ -14,7 +14,7 @@
 #
 # Cubos que consolida:
 #   1. partidasVenta      → métricas de venta (importe, impuesto, cantidad)
-#   2. catalogoProductos  → clasificación del artículo (línea, marca, descripción)
+#   2. historicoInventario  → clasificación del artículo (línea, marca, descripción)
 #
 # ¿Por qué una vista separada de analiticaVentas?
 #   analiticaVentas también incluye el cabecero (ventas) para datos de cliente
@@ -23,7 +23,7 @@
 #   y directa para reportes de producto.
 #
 # Nota sobre SKUs alfanuméricos:
-#   catalogoProductos filtra solo artículos con SKU numérico (TRY_CAST válido).
+#   historicoInventario filtra solo artículos con SKU numérico (TRY_CAST válido).
 #   Los artículos con código alfanumérico no aparecerán en esta vista hasta
 #   que se amplíe el catálogo para incluirlos.
 # =============================================================================
@@ -79,9 +79,9 @@ views:
       # ⚠️ Solo cubre artículos con SKU numérico. Los alfanuméricos quedan
       #    fuera hasta que se amplíe la cobertura del catálogo.
       # -----------------------------------------------------------------------
-      - join_path: catalogoProductos
+      - join_path: historicoInventario
         includes:
-          - name: descripcion
+          - name: producto
             alias: nombreProducto   # Nombre legible del artículo
                                     # Equivale a "Descripción" del reporte Excel
 
@@ -90,7 +90,7 @@ views:
 
           - marca                   # Marca del artículo (para análisis por proveedor/marca)
 
-          - name: skuInt
+          - name: sku
             alias: codigoArticulo   # SKU en formato numérico
                                     # Equivale a la columna "Artículo" del reporte Excel
 
