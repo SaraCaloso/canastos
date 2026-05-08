@@ -48,7 +48,7 @@ cubes:
       FROM canastos_tfx.tfx_table_inv
       WHERE articulo IS NOT NULL        -- excluye NULLs
         AND TRIM(articulo) <> ''        -- excluye vacíos
-        AND TRY_CAST(articulo AS BIGINT) IS NOT NULL  -- excluye alfanuméricos reales
+        AND TRIM(CAST(articulo AS VARCHAR)) <> ''
       GROUP BY CAST(CAST(articulo AS BIGINT) AS VARCHAR)
 
     # -------------------------------------------------------------------------
