@@ -79,7 +79,7 @@ views:
       # ⚠️ Solo cubre artículos con SKU numérico. Los alfanuméricos quedan
       #    fuera hasta que se amplíe la cobertura del catálogo.
       # -----------------------------------------------------------------------
-      - join_path: catalogoLineas
+      - join_path: partidasVenta.catalogoLineas
         includes:
           - name: producto
             alias: nombreProducto   # Nombre legible del artículo
@@ -107,13 +107,6 @@ views:
         type: string
         primary_key: true
         title: "ID Único"
-
-      # SKU del artículo expuesto como atajo en la vista.
-      # Evita tener que ir al cubo base para referenciar el código de artículo.
-      - name: sku
-        sql: "{partidasVenta.skuRaw}"
-        type: string
-        title: "SKU"
 
     # -------------------------------------------------------------------------
     # MEDIDAS ADICIONALES DE LA VISTA
