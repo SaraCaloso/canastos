@@ -41,16 +41,13 @@ cubes:
       -- no cambian entre cortes para el mismo artículo.
       -- =========================================================
       SELECT
-        CAST(CAST(articulo AS BIGINT) AS VARCHAR) AS sku,
-        MAX(linea)                AS linea,
-        MAX(marca)                AS marca,
-        MAX(descrip)              AS producto
+        CAST(articulo AS VARCHAR) AS sku,
+        MAX(linea)   AS linea,
+        MAX(marca)   AS marca,
+        MAX(descrip) AS producto
       FROM canastos_tfx.tfx_table_inv
-      WHERE TRY_CAST(articulo AS BIGINT) IS NOT NULL
-        AND articulo IS NOT NULL
-        AND articulo <> ''
-        AND articulo <> ' '
-      GROUP BY CAST(CAST(articulo AS BIGINT) AS VARCHAR)
+      WHERE articulo IS NOT NULL
+      GROUP BY CAST(articulo AS VARCHAR)
 
     # -------------------------------------------------------------------------
     # JOINS
