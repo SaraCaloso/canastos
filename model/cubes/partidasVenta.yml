@@ -38,7 +38,7 @@ cubes:
         # el join funciona directo sin CAST adicional
       - name: catalogoLineas
         relationship: many_to_one
-        sql: "CAST(TRY_CAST({CUBE}.articulo AS BIGINT) AS VARCHAR) = {catalogoLineas.sku}"
+        sql: "{CUBE}.articulo = {catalogoLineas.sku}"
     # -------------------------------------------------------------------------
     # DIMENSIONES
     # Atributos descriptivos usados para filtrar, agrupar o segmentar los datos.
