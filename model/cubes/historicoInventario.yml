@@ -5,25 +5,32 @@ cubes:
     # sql_table: canastos_tfx.tfx_table_inv
     # NUEVO SQL
     sql: |
-      SELECT 
-        inv.*,
-        p.precio_lista,
-        p.costo_ajustado
-      FROM canastos_tfx.tfx_table_inv AS inv
-      LEFT JOIN (
-        -- Esta subconsulta obtiene el último precio y costo por artículo y sucursal
-        -- Evitamos duplicados agrupando aquí mismo
-        SELECT 
-          articulo,
-          MAX(precio) as precio_lista,
-          AVG(CASE 
-            WHEN costo <= 0 OR costo > precio THEN precio * 0.80 
-            ELSE costo 
-          END) as costo_ajustado
-        FROM canastos_tfx.tfx_table_partvta
-        WHERE is_viable = true
-        GROUP BY articulo
-      ) AS p ON CAST(inv.articulo AS BIGINT) = TRY_CAST(p.articulo AS BIGINT)
+      SELECT *
+      FROM  (SELECT 
+          inv.*,
+          p.precio_lista,
+          p.costo_ajustado
+          ROW_NUMBER() OVER (
+            PARTITION BY inv.articulo
+            ORDER BY inv.partition_date DESC
+          ) AS rn
+        FROM canastos_tfx.tfx_table_inv AS inv
+        LEFT JOIN (
+          -- Esta subconsulta obtiene el último precio y costo por artículo y sucursal
+          -- Evitamos duplicados agrupando aquí mismo
+          SELECT 
+            articulo,
+            MAX(precio) as precio_lista,
+            AVG(CASE 
+              WHEN costo <= 0 OR costo > precio THEN precio * 0.80 
+              ELSE costo 
+            END) as costo_ajustado
+          FROM canastos_tfx.tfx_table_partvta
+          WHERE is_viable = true
+          GROUP BY articulo
+        ) AS p ON CAST(inv.articulo AS BIGINT) = TRY_CAST(p.articulo AS BIGINT)
+      ) deduplicado
+      WHERE rn = 1
     public: true
 
     joins: []

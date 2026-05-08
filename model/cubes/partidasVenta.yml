@@ -41,13 +41,7 @@ cubes:
       #   sql: "{CUBE}.articulo = {catalogoLineas.sku}"
       - name: historicoInventario
         relationship: many_to_one
-        sql: |
-          {CUBE}.articulo = CAST({historicoInventario.sku} AS VARCHAR)
-          AND {historicoInventario.fechaCaptura} = (
-            SELECT MAX(partition_date)
-            FROM canastos_tfx.tfx_table_inv
-            WHERE CAST(articulo AS VARCHAR) = {CUBE}.articulo
-          )
+        sql: "{CUBE}.articulo = CAST({historicoInventario.sku} AS VARCHAR)"
 
     # -------------------------------------------------------------------------
     # DIMENSIONES
