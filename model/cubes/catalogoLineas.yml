@@ -40,14 +40,13 @@ cubes:
       -- MAX() es arbitrario aquí porque línea, marca y descrip
       -- no cambian entre cortes para el mismo artículo.
       -- =========================================================
-      SELECT
-        CAST(articulo AS VARCHAR) AS sku,
-        MAX(linea)   AS linea,
-        MAX(marca)   AS marca,
-        MAX(descrip) AS producto
+      SELECT 
+        articulo as sku, 
+        MAX(linea) as linea, 
+        MAX(marca) as marca, 
+        MAX(producto) as producto
       FROM canastos_tfx.tfx_table_inv
-      WHERE articulo IS NOT NULL
-      GROUP BY CAST(articulo AS VARCHAR)
+      GROUP BY 1
 
     # -------------------------------------------------------------------------
     # JOINS
