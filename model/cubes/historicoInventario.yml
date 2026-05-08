@@ -58,7 +58,10 @@ cubes:
         ON CAST(inv.articulo AS BIGINT) = TRY_CAST(p.articulo AS BIGINT)
     public: true
 
-    joins: []
+    joins:
+      - name: partidasVenta
+        relationship: one_to_many
+        sql: "CAST({CUBE}.articulo AS VARCHAR) = {partidasVenta.skuRaw}"
 
     dimensions:
       - name: id
