@@ -46,9 +46,10 @@ cubes:
         MAX(marca)                AS marca,
         MAX(descrip)              AS producto
       FROM canastos_tfx.tfx_table_inv
-      WHERE articulo IS NOT NULL        -- excluye NULLs
-        AND TRIM(articulo) <> ''        -- excluye vacíos
-        AND TRIM(CAST(articulo AS VARCHAR)) <> ''
+      WHERE TRY_CAST(articulo AS BIGINT) IS NOT NULL
+        AND articulo IS NOT NULL
+        AND articulo <> ''
+        AND articulo <> ' '
       GROUP BY CAST(CAST(articulo AS BIGINT) AS VARCHAR)
 
     # -------------------------------------------------------------------------
