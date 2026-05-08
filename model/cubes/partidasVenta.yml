@@ -36,9 +36,9 @@ cubes:
         sql: "{CUBE}.articulo = {catalogoProductos.sku}"
         #articulo en partvta ya es VARCHAR, sku en catalogoProductos también
         # el join funciona directo sin CAST adicional
-      - name: historicoInventario
+      - name: catalogoLineas
         relationship: many_to_one
-        sql: "{CUBE}.articulo = CAST({historicoInventario.sku} AS VARCHAR)"
+        sql: "{CUBE}.articulo = {catalogoLineas.sku}"
     # -------------------------------------------------------------------------
     # DIMENSIONES
     # Atributos descriptivos usados para filtrar, agrupar o segmentar los datos.
