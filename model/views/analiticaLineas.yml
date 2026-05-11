@@ -72,14 +72,14 @@ views:
           - name: sku
             alias: codigoArticulo   # SKU en formato numérico
                                     # Equivale a la columna "Artículo" del reporte Excel
-          - name: importe
-            alias: importe
-          - name: impuesto
-            alias: impuesto
-          - name: cantVendida
-            alias: cantVendida
-          - name: total
-            alias: total
+          # - name: importe
+          #   alias: importe
+          # - name: impuesto
+          #   alias: impuesto
+          # - name: cantVendida
+          #   alias: cantVendida
+          # - name: total
+          #   alias: total
 
     # -------------------------------------------------------------------------
     # DIMENSIONES ADICIONALES DE LA VISTA
