@@ -35,7 +35,7 @@ cubes:
 
     sql: |
       SELECT
-        CAST(inv.articulo AS VARCHAR)          AS sku,
+        LPAD(CAST(inv.articulo AS VARCHAR), 5, '0') AS sku,
         MAX(inv.linea)                          AS linea,
         MAX(inv.marca)                          AS marca,
         MAX(inv.descrip)                        AS producto,
@@ -58,10 +58,9 @@ cubes:
         ), 0)                                   AS cant_vendida
       FROM canastos_tfx.tfx_table_inv inv
       LEFT JOIN canastos_tfx.tfx_table_partvta p
-        ON CAST(inv.articulo AS VARCHAR) = p.articulo
+        ON LPAD(CAST(inv.articulo AS VARCHAR), 5, '0') = p.articulo
       WHERE inv.articulo IS NOT NULL
-      GROUP BY CAST(inv.articulo AS VARCHAR)
-
+      GROUP BY LPAD(CAST(inv.articulo AS VARCHAR), 5, '0')
     # -------------------------------------------------------------------------
     # JOINS
     # Este cubo es un catálogo de solo lectura (lookup).
