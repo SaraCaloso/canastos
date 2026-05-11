@@ -35,32 +35,13 @@ cubes:
 
     sql: |
       SELECT
-        LPAD(CAST(inv.articulo AS VARCHAR), 5, '0') AS sku,
-        MAX(inv.linea)                          AS linea,
-        MAX(inv.marca)                          AS marca,
-        MAX(inv.descrip)                        AS producto,
-        COALESCE(SUM(
-          CASE WHEN p.is_viable = true
-          THEN p.precio * p.cantidad * (1 - COALESCE(p.descuento, 0) / 100.0)
-          ELSE 0 END
-        ), 0)                                   AS importe,
-        COALESCE(SUM(
-          CASE 
-            WHEN p.is_viable = true AND p.impuesto = 16
-            THEN p.precio * p.cantidad * (1 - COALESCE(p.descuento, 0) / 100.0) * 0.16
-            WHEN p.is_viable = true AND p.impuesto = 8
-            THEN p.precio * p.cantidad * (1 - COALESCE(p.descuento, 0) / 100.0) * 0.08
-            ELSE 0 END
-        ), 0)                                   AS impuesto,
-        COALESCE(SUM(
-          CASE WHEN p.is_viable = true
-          THEN p.cantidad ELSE 0 END
-        ), 0)                                   AS cant_vendida
-      FROM canastos_tfx.tfx_table_inv inv
-      LEFT JOIN canastos_tfx.tfx_table_partvta p
-        ON LPAD(CAST(inv.articulo AS VARCHAR), 5, '0') = p.articulo
-      WHERE inv.articulo IS NOT NULL
-      GROUP BY LPAD(CAST(inv.articulo AS VARCHAR), 5, '0')
+        LPAD(CAST(articulo AS VARCHAR), 5, '0') AS sku,
+        MAX(linea)   AS linea,
+        MAX(marca)   AS marca,
+        MAX(descrip) AS producto
+      FROM canastos_tfx.tfx_table_inv
+      WHERE articulo IS NOT NULL
+      GROUP BY LPAD(CAST(articulo AS VARCHAR), 5, '0')
     # -------------------------------------------------------------------------
     # JOINS
     # Este cubo es un catálogo de solo lectura (lookup).
@@ -109,27 +90,3 @@ cubes:
         sql: "{CUBE}.producto"
         type: string
         title: "Producto"
-    
-    measures:
-      - name: importe
-        sql: "{CUBE}.importe"
-        type: sum
-        format: currency
-        title: "Importe"
-
-      - name: impuesto
-        sql: "{CUBE}.impuesto"
-        type: sum
-        format: currency
-        title: "Impuesto"
-
-      - name: cantVendida
-        sql: "{CUBE}.cant_vendida"
-        type: sum
-        title: "Cant. Vendida"
-
-      - name: total
-        sql: "{CUBE}.importe + {CUBE}.impuesto"
-        type: sum
-        format: currency
-        title: "Total"
