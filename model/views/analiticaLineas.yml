@@ -35,62 +35,39 @@ views:
 
     cubes:
       # -----------------------------------------------------------------------
-      # BLOQUE 1: Campos del cubo "partidasVenta"
-      # Es el cubo principal de esta vista. Aporta todas las métricas de venta
-      # y las dimensiones temporales y de sucursal.
-      # Todos los demás cubos se unen a través de él.
+      # BLOQUE 1: ventasArticulo — métricas filtrables por fecha y sucursal
+      # Es el cubo principal de esta vista. Pre-agrega las ventas por artículo
+      # + fecha + sucursal, permitiendo filtros dinámicos desde Preset.
       # -----------------------------------------------------------------------
-      - join_path: partidasVenta
+      - join_path: ventasArticulo
         includes:
-          # --- Dimensiones de contexto ---
-          - sucursal        # Sucursal donde ocurrió la venta
-          - fecha           # Fecha de la transacción (campo time, útil para filtros)
-          - anio            # Año extraído de fecha
-          - numMes          # Número de mes (1–12)
-          - nombreMes       # Nombre del mes en español para etiquetas en reportes
-          - diaSemana       # Día de la semana (0=Dom, 6=Sáb)
+          - sucursal        # Filtro de sucursal en Preset
+          - fecha           # Filtro de fecha en Preset
+          - anio
+          - numMes
+          - nombreMes
+          - importe
+          - impuesto
+          - total
+          - cantVendida
+          - conteoTickets
 
       # -----------------------------------------------------------------------
-      # BLOQUE 2: Campos del catálogo de productos
-      # Aporta la clasificación descriptiva de cada artículo.
-      # Se une directamente a partidasVenta por SKU.
-      #
-      # ⚠️ Solo cubre artículos con SKU numérico. Los alfanuméricos quedan
-      #    fuera hasta que se amplíe la cobertura del catálogo.
+      # BLOQUE 2: catalogoLineas — dimensiones del artículo
+      # Accedido a través de ventasArticulo → catalogoLineas.
       # -----------------------------------------------------------------------
-      - join_path: partidasVenta.catalogoLineas
+      - join_path: ventasArticulo.catalogoLineas
         includes:
           - name: producto
-            alias: nombreProducto   # Nombre legible del artículo
-                                    # Equivale a "Descripción" del reporte Excel
-
-          - linea                   # Clave de línea (ej: B01, L02)
-                                    # Equivale a la columna "Línea" y agrupador del reporte Excel
-
-          - marca                   # Marca del artículo (para análisis por proveedor/marca)
-
+            alias: nombreProducto
+          - linea
+          - marca
           - name: sku
-            alias: codigoArticulo   # SKU en formato numérico
-                                    # Equivale a la columna "Artículo" del reporte Excel
-          # - name: importe
-          #   alias: importe
-          # - name: impuesto
-          #   alias: impuesto
-          # - name: cantVendida
-          #   alias: cantVendida
-          # - name: total
-          #   alias: total
+            alias: codigoArticulo
 
-    # -------------------------------------------------------------------------
-    # DIMENSIONES ADICIONALES DE LA VISTA
-    # Calculadas directamente en la vista para facilitar el uso en Preset
-    # sin necesidad de referenciar el cubo base explícitamente.
-    # -------------------------------------------------------------------------
     dimensions:
-      # Llave primaria de la vista: combina venta y sucursal para
-      # identificar de forma única cada línea de análisis en el explorador.
       - name: id
-        sql: "{partidasVenta.venta} || '-' || {partidasVenta.sucursal}"
+        sql: "{ventasArticulo.sku} || '-' || {ventasArticulo.sucursal}"
         type: string
         primary_key: true
         title: "ID Único"
