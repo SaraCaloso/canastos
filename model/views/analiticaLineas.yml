@@ -39,10 +39,23 @@ views:
       # Es el cubo principal de esta vista. Pre-agrega las ventas por artículo
       # + fecha + sucursal, permitiendo filtros dinámicos desde Preset.
       # -----------------------------------------------------------------------
-      - join_path: ventasArticulo
+      - join_path: catalogoLineas
         includes:
-          - sucursal        # Filtro de sucursal en Preset
-          - fecha           # Filtro de fecha en Preset
+          - linea
+          - marca
+          - name: producto
+            alias: nombreProducto
+          - name: sku
+            alias: codigoArticulo
+
+      # -----------------------------------------------------------------------
+      # BLOQUE 2: catalogoLineas — dimensiones del artículo
+      # Accedido a través de ventasArticulo → catalogoLineas.
+      # -----------------------------------------------------------------------
+      - join_path: catalogoLineas.ventasArticulo
+        includes:
+          - sucursal
+          - fecha
           - anio
           - numMes
           - nombreMes
@@ -51,19 +64,6 @@ views:
           - total
           - cantVendida
           - conteoTickets
-
-      # -----------------------------------------------------------------------
-      # BLOQUE 2: catalogoLineas — dimensiones del artículo
-      # Accedido a través de ventasArticulo → catalogoLineas.
-      # -----------------------------------------------------------------------
-      - join_path: ventasArticulo.catalogoLineas
-        includes:
-          - name: producto
-            alias: nombreProducto
-          - linea
-          - marca
-          - name: sku
-            alias: codigoArticulo
 
     dimensions:
       - name: id

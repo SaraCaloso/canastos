@@ -47,7 +47,10 @@ cubes:
     # Este cubo es un catálogo de solo lectura (lookup).
     # No inicia joins — otros cubos (partidasVenta) se unen hacia él.
     # -------------------------------------------------------------------------
-    joins: []
+    joins: 
+      - name: ventasArticulo
+        relationship: one_to_many
+        sql: "{CUBE}.sku = {ventasArticulo.sku}"
 
     # -------------------------------------------------------------------------
     # DIMENSIONES

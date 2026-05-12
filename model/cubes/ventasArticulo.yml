@@ -64,17 +64,7 @@ cubes:
         sucursal,
         partition_date
 
-    # -------------------------------------------------------------------------
-    # JOINS
-    # ventasArticulo se une a catalogoLineas para heredar la clasificación
-    # del artículo (línea, marca, descripción).
-    # Es many_to_one: muchas combinaciones de fecha+sucursal por artículo
-    # apuntan a un único registro en el catálogo.
-    # -------------------------------------------------------------------------
-    joins:
-      - name: catalogoLineas
-        relationship: many_to_one
-        sql: "{CUBE}.sku = {catalogoLineas.sku}"
+    joins: []
 
     # -------------------------------------------------------------------------
     # DIMENSIONES
