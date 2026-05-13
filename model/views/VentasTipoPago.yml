@@ -1,0 +1,25 @@
+views:
+  - name: ventasTipoPago
+    title: "4. Ventas por Tipo de Pago"
+    description: |
+      Desglose de ventas por tipo de pago usando cortes Z.
+      Efectivo = totalcaja
+      Tarjeta/Otros = totalventas - totalcaja
+
+    public: true
+
+    cubes:
+      - join_path: cortesDiarios
+        includes:
+          - fechaCorte
+          - sucursal
+          - estacion
+          - anio
+          - numMes
+          - nombreMes
+          - diaSemana
+          - tipoCorte
+          - ventasReportadasZ
+          - efectivoCaja
+          - ventasNoEfectivo
+          - conteoCortes

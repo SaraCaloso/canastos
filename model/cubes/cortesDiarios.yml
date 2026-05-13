@@ -209,3 +209,14 @@ cubes:
       - name: sinCobranza
         sql: "{CUBE}.estacion != 'COBRANZA'"
         title: "Sin Estación Cobranza"
+
+      - name: ventasNoEfectivo
+        sql: "{CUBE}.totalventas - {CUBE}.totalcaja"
+        type: sum
+        format: currency
+        title: "Ventas No Efectivo (Tarjeta/Crédito)"
+
+      - name: conteoCortes
+        sql: "{CUBE}.cort_id"
+        type: count_distinct
+        title: "Número de Cortes"
