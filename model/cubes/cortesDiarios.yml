@@ -19,7 +19,6 @@ cubes:
         partition_date,
         clientesatendidos,
         cort_id,
-        -- TRY_CAST en lugar de CAST para tolerar filas con schema drift
         TRY_CAST(totalventas    AS DOUBLE) AS totalventas,
         TRY_CAST(totalcaja      AS DOUBLE) AS totalcaja,
         TRY_CAST(totalingresos  AS DOUBLE) AS totalingresos,
@@ -48,8 +47,8 @@ cubes:
         title: "Número de Corte"
 
       - name: fechaCorte
-        sql: "{CUBE}.partition_date"
-        type: time
+        sql: "CAST({CUBE}.partition_date AS VARCHAR)"
+        type: string
         title: "Fecha de Corte"
 
       - name: anio
@@ -153,7 +152,6 @@ cubes:
         format: currency
         title: "IVA 0%"
 
-      # ── Tasa 8% derivada ───────────────────────────────────────────────────
       - name: ventas8
         sql: |
           (
