@@ -201,7 +201,7 @@ cubes:
     # -------------------------------------------------------------------------
     measures:
       # Suma total de existencias en todas las ubicaciones y fechas del filtro.
-      # Incluye CEDIS por defecto; aplicar soloTiendas para análisis por canal.
+      #  Incluye CEDIS por defecto; aplicar soloTiendas para análisis por canal.
       - name: cantidadStock
         sql: "{CUBE}.existencia"
         type: sum
