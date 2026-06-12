@@ -86,7 +86,7 @@ cubes:
     # -------------------------------------------------------------------------
     dimensions:
       # Llave primaria del corte. Usa cort_id que es único por registro en la tabla.
-      - name: id
+      - name: cortes_ID
         sql: "{CUBE}.cort_id"
         type: string
         primary_key: true # Necesario para joins futuros y consistencia del modelo

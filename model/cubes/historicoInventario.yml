@@ -65,7 +65,7 @@ cubes:
     dimensions:
       # Llave primaria compuesta: artículo + sucursal + fecha.
       # Los tres campos juntos garantizan unicidad del snapshot histórico.
-      - name: id
+      - name: inv_ID
         sql: "CAST({CUBE}.articulo AS VARCHAR) || '-' || {CUBE}.sucursal || '-' || CAST({CUBE}.partition_date AS VARCHAR)"
         type: string
         primary_key: true

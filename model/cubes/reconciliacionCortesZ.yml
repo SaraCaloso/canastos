@@ -106,7 +106,7 @@ cubes:
     dimensions:
       # Llave primaria compuesta: fecha + sucursal en texto.
       # Garantiza unicidad dado que el SQL ya agrupa por esos dos campos.
-      - name: id
+      - name: reconciliacionCortesZ_ID
         sql: "CAST({CUBE}.fecha AS VARCHAR) || '-' || {CUBE}.sucursal"
         type: string
         primary_key: true

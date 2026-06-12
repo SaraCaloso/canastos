@@ -54,7 +54,7 @@ cubes:
       # Llave primaria en formato string.
       # Se usa VARCHAR y no BIGINT para mantener consistencia con otros cubos
       # que referencian el SKU como texto.
-      - name: id
+      - name: catalogoProductos_ID
         sql: "{CUBE}.sku_str"
         type: string
         primary_key: true

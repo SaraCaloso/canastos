@@ -28,7 +28,7 @@ cubes:
       # Llave primaria compuesta: cliente + sucursal.
       # Un cliente puede estar registrado en múltiples sucursales con perfiles
       # independientes, por lo que la unicidad requiere ambos campos.
-      - name: id
+      - name: clientes_ID
         sql: "{CUBE}.cliente || '-' || {CUBE}.sucursal"
         type: string
         primary_key: true

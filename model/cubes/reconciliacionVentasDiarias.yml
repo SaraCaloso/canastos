@@ -93,7 +93,7 @@ cubes:
     dimensions:
       # Llave primaria compuesta: fecha + sucursal en texto.
       # Ambos campos forman la clave del join con reconciliacionCortesZ.
-      - name: id
+      - name: reconciliacionVentasDiarias_ID
         sql: "CAST({CUBE}.fecha AS VARCHAR) || '-' || {CUBE}.sucursal"
         type: string
         primary_key: true

@@ -47,7 +47,7 @@ cubes:
     # Este cubo es un catálogo de solo lectura (lookup).
     # No inicia joins — otros cubos (partidasVenta) se unen hacia él.
     # -------------------------------------------------------------------------
-    joins: 
+    joins:
       - name: ventasArticulo
         relationship: one_to_many
         sql: "{CUBE}.sku = {ventasArticulo.sku}"
@@ -60,7 +60,7 @@ cubes:
     dimensions:
       # Llave primaria: SKU como string, único por artículo en toda la empresa.
       # Al estar deduplicado por GROUP BY, no hay riesgo de duplicados aquí.
-      - name: id
+      - name: catalogoLineas_ID
         sql: "{CUBE}.sku"
         type: string
         primary_key: true

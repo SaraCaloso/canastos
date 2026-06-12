@@ -41,7 +41,7 @@ cubes:
       # Llave primaria compuesta: folio + sucursal.
       # El mismo número de folio puede existir en distintas sucursales,
       # por lo que se necesitan ambos campos para garantizar unicidad.
-      - name: id
+      - name: VentasPorDocumento_ID
         sql: "{CUBE}.venta || '-' || {CUBE}.sucursal"
         type: string
         primary_key: true

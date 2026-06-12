@@ -71,7 +71,7 @@ cubes:
     # -------------------------------------------------------------------------
     dimensions:
       # Llave primaria: SKU + sucursal + fecha garantizan unicidad por fila.
-      - name: id
+      - name: ventassArticulo_ID
         sql: "{CUBE}.sku || '-' || {CUBE}.sucursal || '-' || CAST({CUBE}.fecha AS VARCHAR)"
         type: string
         primary_key: true

@@ -49,7 +49,7 @@ cubes:
       # Se construye combinando venta + artículo + sucursal + fecha de partición
       # para garantizar unicidad incluso si el mismo artículo aparece en
       # diferentes fechas o sucursales.
-      - name: id
+      - name: partvta_ID
         sql: "{CUBE}.venta || '-' || {CUBE}.articulo || '-' || {CUBE}.sucursal || '-' || CAST({CUBE}.partition_date AS VARCHAR)"
         type: string
         primary_key: true

@@ -102,7 +102,7 @@ cubes:
     dimensions:
       # Llave primaria del cabecero. Combina folio + sucursal + tipo de documento
       # para garantizar unicidad incluso con la deduplicación activa.
-      - name: id
+      - name: ventas_ID
         sql: "{CUBE}.venta || '-' || {CUBE}.sucursal || '-' || {CUBE}.tipo_doc"
         type: string
         primary_key: true
